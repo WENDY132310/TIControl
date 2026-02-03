@@ -1,0 +1,1594 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icono.png') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <title>TIControl</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #3b5fff 0%, #709bf7 100%);
+            min-height: 100vh;
+        }
+
+        /* Login */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            margin: auto;
+            max-width: 420px;
+            width: 90%;
+
+        }
+
+        .footer {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            text-align: center;
+            gap: 10px;
+        }
+
+        .footer img {
+            max-width: 120px;
+            height: auto;
+        }
+
+        .login-box {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-box h1 {
+            color: #3b5fff;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #3b5fff;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #3b5fff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        /* Dashboard */
+        .dashboard {
+            display: none;
+            padding: 20px;
+        }
+
+        .navbar {
+            background: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar-brand {
+            font-size: 24px;
+            font-weight: bold;
+            color: #3b5fff;
+        }
+
+        .navbar-user {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-badge {
+            background: #3b5fff;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+
+        .btn-logout {
+            background: #f70019;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .btn-logout:hover {
+            background: #c82333;
+        }
+
+        .sidebar {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .menu-item {
+            padding: 12px 20px;
+            margin: 5px 0;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .menu-item:hover {
+            background: #f0f0f0;
+        }
+
+        .menu-item.active {
+            background: #3b5fff;
+            color: white;
+        }
+
+        .content {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .module {
+            display: none;
+        }
+
+        .module.active {
+            display: block;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #3b5fff 0%, #709bf7 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            margin-top: 10px;
+            opacity: 0.9;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th {
+            background: #3b5fff;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-operativo {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-reparacion {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-baja {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 12px;
+            margin: 0 2px;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #000;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            color: #3b5fff;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .hidden {
+            display: none !important;
+
+        }
+
+        .detail-row {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            padding: 8px 10px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .detail-label {
+            font-weight: bold;
+            color: #2f5cff;
+        }
+
+        .detail-value {
+            color: #333;
+        }
+
+
+        @media (max-width: 768px) {
+
+            body {
+                padding: 0;
+                margin: 0;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+                text-align: center;
+            }
+
+            .login-container {
+                padding: 15px;
+            }
+
+            footer {
+                font-size: 0.8rem;
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Login -->
+    <div id="login-screen" class="login-container">
+        <div class="login-box">
+            <img src="static\icono.png" alt="icono"
+                style="height:100px;border-radius: 50%;margin-top: 0px; margin-left: auto; margin-right: auto; display: block;">
+            <h1>TIControl</h1>
+            <div id="login-error" class="error-message"></div>
+            <form id="login-form">
+                <div class="form-group">
+                    <label>Cédula</label>
+                    <input type="text" id="login-cedula" required>
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <input type="password" id="login-password" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Iniciar Sesión</button>
+            </form>
+        </div>
+        <div id="footer"
+            style="position: absolute; bottom: 10px; width: 100%; text-align: center; color: rgb(26, 25, 25);">
+
+            <div
+                style="background-color: white; height: fit-content; width: 550px; margin-left: auto; margin-right: auto; display: flex; padding: 5px; border-radius: 10px; margin-top: 5px;justify-content: center; gap:10px;">
+                <img src="static\logosubred.png" alt="subred_icono" style="height:62px; margin-top: auto; ">
+                <img src="static\secretariadesalud.png" alt="secretaria_icono" style="height:80px; margin-top: auto; ">
+            </div>
+            <p style="font-weight: bold; font-style: italic;">&copy; 2026 TIControl. Todos los derechos reservados
+                Desarrollado por Wendy Caroline Cardenas Villalobos.</p>
+        </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboard-screen" class="dashboard" style="display:none;">
+        <!-- Navbar -->
+        <div class="navbar">
+            <image src="static\icono.png" alt="icono" style="height:100px;margin-left: 200px;border-radius: 50%;">
+            </image>
+            <div class="navbar-brand" style="font-size: 80px; margin-left: 20px;">TIControl</div>
+            <div class="navbar-user">
+                <span id="user-name"></span>
+                <span id="user-role" class="user-badge"></span>
+                <button class="btn-logout" onclick="logout()">Salir</button>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 250px 1fr; gap: 20px;">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <div class="menu-item active" onclick="showModule('equipos')">
+                    🖥️ Equipos
+                </div>
+                <div class="menu-item" onclick="showModule('mantenimientos')">
+                    🔧 Mantenimientos
+                </div>
+                <div class="menu-item" onclick="showModule('traslados')">
+                    🚚 Traslados
+                </div>
+                <div class="menu-item" onclick="showModule('responsables')">
+                    👤 Responsables
+                </div>
+                <div class="menu-item" onclick="showModule('reportes')">
+                    📈 Reportes
+                </div>
+                <div id="menu-usuarios" class="menu-item hidden" onclick="showModule('usuarios')">
+                    👥 Usuarios
+                </div>
+            </div>
+
+            <!-- Content -->
+            <div class="content">
+                <!-- Módulo Equipos -->
+                <div id="module-equipos" class="module active">
+                    <h2>Gestión de Equipos</h2>
+                    <div class="stats-grid" id="stats-equipos"></div>
+
+                    <div class="filters">
+                        <select id="filter-unidad">
+                            <option value="">Todas las unidades</option>
+                        </select>
+                        <select id="filter-estado">
+                            <option value="">Todos los estados</option>
+                            <option value="Operativo">Operativo</option>
+                            <option value="En reparacion">En reparación</option>
+                            <option value="Baja">Baja</option>
+                        </select>
+                        <select id="filter-area">
+                            <option value="">Todas las áreas</option>
+                            <option value="Administrativo">Administrativo</option>
+                            <option value="Asistencial">Asistencial</option>
+                        </select>
+                        <select id="filter-tipo-equipo">
+                            <option value="">Todos los tipos</option>
+                            <option value="Escritorio">Escritorio</option>
+                            <option value="Portátil">Portátil</option>
+                        </select>
+                        <input type="text" id="filtro-buscar" placeholder="Nombre ó IP">
+                        <button class="btn btn-primary" onclick="cargarEquipos()">
+                            <i class="fas fa-search"></i> Buscar
+                            <button class="btn btn-secondary" onclick="limpiarFiltros()">
+                                <i class="fas fa-broom"></i> Limpiar Filtros
+                            </button>
+                    </div>
+
+                    <table id="tabla-equipos">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Marca/Modelo</th>
+                                <th>Unidad</th>
+                                <th>Estado</th>
+                                <th>IP</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <!-- Módulo Mantenimientos -->
+                <div id="module-mantenimientos" class="module">
+                    <h2>Registro de Mantenimientos</h2>
+                    <button class="btn btn-success" onclick="abrirModalMantenimiento()">
+                        <i class="fas fa-plus"></i> Nuevo Mantenimiento
+                    </button>
+                    <table id="tabla-mantenimientos">
+                        <thead>
+                            <tr>
+                                <th>Equipo</th>
+                                <th>Tipo</th>
+                                <th>Descripción</th>
+                                <th>Técnico</th>
+                                <th>Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <!-- Módulo Traslados -->
+                <div id="module-traslados" class="module">
+                    <h2>Registro de Traslados</h2>
+                    <button class="btn btn-success" onclick="abrirModalTraslado()">
+                        <i class="fas fa-plus"></i> Nuevo Traslado
+                    </button>
+                    <table id="tabla-traslados">
+                        <thead>
+                            <tr>
+                                <th>Equipo</th>
+                                <th>Origen</th>
+                                <th>Destino</th>
+                                <th>Técnico</th>
+                                <th>Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <!-- Módulo Responsables -->
+                <div id="module-responsables" class="module">
+                    <h2>Asignación de Responsables</h2>
+                    <button class="btn btn-success" onclick="abrirModalResponsable()">
+                        <i class="fas fa-plus"></i> Asignar Responsable
+                    </button>
+                    <table id="tabla-responsables">
+                        <thead>
+                            <tr>
+                                <th>Equipo</th>
+                                <th>Técnico</th>
+                                <th>Desde</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <!-- Módulo Reportes -->
+                <div id="module-reportes" class="module">
+                    <h2>Reportes y Estadísticas</h2>
+                    <div style="margin-bottom: 20px;">
+                        <button class="btn btn-info btn-sm" onclick="generarReporteEstados()">
+                            <i class="fas fa-history"></i> Historial de Estados
+                        </button>
+                        <button class="btn btn-info btn-sm" onclick="generarReporteTecnicos()">
+                            <i class="fas fa-user-tie"></i> Equipos por Técnico
+                        </button>
+                        <button class="btn btn-info btn-sm" onclick="exportarCSV()">
+                            <i class="fas fa-file-export"></i> Exportar Todo a CSV
+                        </button>
+                    </div>
+                    <div id="reporte-contenido"></div>
+                </div>
+
+                <!-- Módulo Usuarios (Solo Superusuario) -->
+                <div id="module-usuarios" class="module">
+                    <h2>Gestión de Usuarios</h2>
+                    <button class="btn btn-success" onclick="abrirModalUsuario()">
+                        <i class="fas fa-plus"></i> Nuevo Usuario
+                    </button>
+                    <table id="tabla-usuarios">
+                        <thead>
+                            <tr>
+                                <th>Cédula</th>
+                                <th>Nombre</th>
+                                <th>Rol</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modales -->
+    <!-- Modal Detalles Equipo-->
+    <div id="modal-detalles" class="modal">
+         
+        <div class="modal-content">
+            <h3>Detalles del Equipo</h3>
+           
+            <div id="detalles-contenido"></div>
+            <button class="btn btn-primary" onclick="imprimirPDF()"><i class="fas fa-print"></i>  Imprimir PDF</button>
+           <button onclick="cerrarModal('modal-detalles')" style="margin-right: 100px;" class="btn btn-secondary">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- Modal Cambiar Estado -->
+    <div id="modal-estado" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Cambiar Estado</h2>
+                <button class="close-btn" onclick="cerrarModal('modal-estado')">×</button>
+            </div>
+            <form id="form-estado" onsubmit="cambiarEstado(event)">
+                <input type="hidden" id="estado-equipo">
+                <div class="form-group">
+                    <label>Nuevo Estado</label>
+                    <select id="estado-nuevo" required>
+                        <option value="Operativo">Operativo</option>
+                        <option value="En reparacion">En reparación</option>
+                        <option value="Baja">Baja</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Guardar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Mantenimiento -->
+    <div id="modal-mantenimiento" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Registrar Mantenimiento</h2>
+                <button class="close-btn" onclick="cerrarModal('modal-mantenimiento')">×</button>
+            </div>
+            <form id="form-mantenimiento" onsubmit="registrarMantenimiento(event)">
+                <div class="form-group">
+                    <label>Equipo</label>
+                    <select id="mant-equipo" required></select>
+                </div>
+                <div class="form-group">
+                    <label>Tipo</label>
+                    <select id="mant-tipo" required>
+                        <option value="HARDWARE">Hardware</option>
+                        <option value="SOFTWARE">Software</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Descripción</label>
+                    <textarea id="mant-descripcion" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Guardar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Traslado -->
+    <div id="modal-traslado" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Registrar Traslado</h2>
+                <button class="close-btn" onclick="cerrarModal('modal-traslado')">×</button>
+            </div>
+            <form id="form-traslado" onsubmit="registrarTraslado(event)">
+                <div class="form-group">
+                    <label>Equipo</label>
+                    <select id="tras-equipo" required></select>
+                </div>
+                <div class="form-group">
+                    <label>Sede Origen</label>
+                    <input type="text" id="tras-origen" required>
+                </div>
+                <div class="form-group">
+                    <label>Sede Destino</label>
+                    <input type="text" id="tras-destino" required>
+                </div>
+                <div class="form-group">
+                    <label>Observación</label>
+                    <textarea id="tras-observacion"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Guardar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Responsable -->
+    <div id="modal-responsable" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Asignar Responsable</h2>
+                <button class="close-btn" onclick="cerrarModal('modal-responsable')">×</button>
+            </div>
+                <form id="form-responsable">
+                    <div class="form-group">
+                        <label>Equipo</label>
+                        <select id="resp-equipo" required></select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Técnico</label>
+                        <select id="resp-tecnico" required></select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Observación</label>
+                        <textarea id="resp-observacion"></textarea>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="btn btn-primary"
+                        onclick="asignarResponsable(event)"
+                    >
+                        <i class="fas fa-save"></i> Guardar
+                    </button>
+                </form>
+        </div>
+    </div>
+
+    <!-- Modal Usuario -->
+    <div id="modal-usuario" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Gestionar Usuario</h2>
+                <button class="close-btn" onclick="cerrarModal('modal-usuario')">×</button>
+            </div>
+            <form id="form-usuario" onsubmit="guardarUsuario(event)">
+                <div class="form-group">
+                    <label>Cédula</label>
+                    <input type="number" id="user-cedula" required>
+                </div>
+                <div class="form-group">
+                    <label>Nombre</label>
+                    <input type="text" id="user-nombre" required>
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <input type="password" id="user-password" required>
+                </div>
+                <div class="form-group">
+                    <label>Rol</label>
+                    <select id="user-rol" required></select>
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Guardar</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://192.168.80.125:5000/api';
+        let authToken = localStorage.getItem('authToken');
+        let currentUser = JSON.parse(localStorage.getItem('currentUser'));
+
+        // ==================== AUTENTICACIÓN ====================
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const cedula = document.getElementById('login-cedula').value;
+    const password = document.getElementById('login-password').value;
+
+    try {
+        const response = await fetch(`${API_URL}/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cedula, password })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            currentUser = data.user;
+            authToken = data.token;
+
+            localStorage.setItem('authToken', authToken);
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+
+            mostrarDashboard();
+        } else {
+            mostrarError(data.error || 'Credenciales incorrectas');
+        }
+    } 
+    catch (error) {
+        mostrarError('Error de conexión con el servidor');
+        }
+    });
+
+
+        function mostrarError(mensaje) {
+            const errorDiv = document.getElementById('login-error');
+            errorDiv.textContent = mensaje;
+            errorDiv.style.display = 'block';
+        }
+
+        function mostrarDashboard() {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('dashboard-screen').style.display = 'block';
+            document.getElementById('user-name').textContent = currentUser.nombre_usuario;
+            document.getElementById('user-role').textContent = currentUser.nombre_rol;
+
+            // Mostrar menú de usuarios solo para superusuario
+            if (currentUser.nombre_rol === 'SUPERUSUARIO') {
+                document.getElementById('menu-usuarios').classList.remove('hidden');
+            }
+
+            cargarDatos();
+        }
+
+        function logout() {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            location.reload();
+        }
+
+        // Verificar sesión al cargar
+        window.addEventListener('load', () => {
+            const token = localStorage.getItem('authToken');
+            const user = localStorage.getItem('currentUser');
+
+            if (token && user) {
+                authToken = token;
+                currentUser = JSON.parse(user);
+                mostrarDashboard();
+            }
+        });
+
+        // ==================== FUNCIONES DE API ====================
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            const token = localStorage.getItem('authToken');
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                }
+            };
+
+            if (body) {
+                options.body = JSON.stringify(body);
+            }
+
+            const response = await fetch(`${API_URL}${endpoint}`, options);
+
+            if (response.status === 401) {
+                logout();
+                return null;
+            }
+            if (response.status === 403) {
+                // SOLO mostrar error, NO cerrar sesión
+                return { error: 'No tienes permisos para esta acción' };
+            }
+
+            return await response.json();
+        }
+
+        // ==================== NAVEGACIÓN ====================
+        function showModule(moduleName) {
+            document.querySelectorAll('.module').forEach(m => m.classList.remove('active'));
+            document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+
+            document.getElementById(`module-${moduleName}`).classList.add('active');
+            event.target.classList.add('active');
+
+            // Cargar datos del módulo
+            switch (moduleName) {
+                case 'equipos': cargarEquipos(); break;
+                case 'mantenimientos': cargarMantenimientos(); break;
+                case 'traslados': cargarTraslados(); break;
+                case 'responsables': cargarResponsables(); break;
+                case 'usuarios': cargarUsuarios(); break;
+            }
+        }
+
+        // ==================== CARGAR DATOS ====================
+        async function cargarDatos() {
+            await cargarEquipos();
+            await cargarEstadisticas();
+        }
+
+        async function cargarEstadisticas() {
+            const stats = await apiCall('/estadisticas');
+            if (!stats) return;
+
+            const html = `
+                <div class="stat-card">
+                    <div class="stat-number">${stats.total_equipos}</div>
+                    <div class="stat-label">Total Equipos</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.por_estado?.Operativo || 0}</div>
+                    <div class="stat-label">Operativos</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.por_estado?.['En reparacion'] || 0}</div>
+                    <div class="stat-label">En Reparación</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.por_estado?.Baja || 0}</div>
+                    <div class="stat-label">De Baja</div>
+                </div>
+            `;
+            document.getElementById('stats-equipos').innerHTML = html;
+        }
+
+        async function cargarEquipos() {
+            const unidad = document.getElementById('filter-unidad').value;
+            const estado = document.getElementById('filter-estado').value;
+            const tipoEquipo = document.getElementById('filter-tipo-equipo').value;
+            const area = document.getElementById('filter-area').value;
+            const busqueda = document.getElementById('filtro-buscar').value.trim().toLowerCase();
+
+            let url = '/equipos?';
+            if (unidad) url += `unidad=${unidad}&`;
+            if (estado) url += `estado=${estado}&`;
+            if (tipoEquipo) url += `tipo_equipo=${tipoEquipo}&`;
+            if (area) url += `area=${area}&`;
+            if (busqueda) url += `busqueda=${busqueda}&`;
+
+            const data = await apiCall(url);
+            if (!data) return;
+
+            const tbody = document.querySelector('#tabla-equipos tbody');
+            tbody.innerHTML = data.equipos.map(eq => `
+                <tr>
+                    <td>${eq.nombre_equipo}</td>
+                    <td>${eq.marca_equipo} ${eq.modelo_equipo}</td>
+                    <td>${eq.unidad_actual}</td>
+                    <td><span class="badge badge-${eq.estado_equipo.toLowerCase().replace(' ', '')}">${eq.estado_equipo}</span></td>
+                    <td>${eq.ip_equipo || 'N/A'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick='abrirModalDetalles(${JSON.stringify(eq)})'>Ver</button>
+                        <button class="btn btn-sm btn-warning" onclick="abrirModalEstado('${eq.nombre_equipo}')">Estado</button>
+                    </td>
+                </tr>
+            `).join('');
+
+
+            // Cargar unidades para filtro
+            const unidades = [...new Set(data.equipos.map(e => e.unidad_actual))];
+            document.getElementById('filter-unidad').innerHTML =
+                '<option value="">Todas las unidades</option>' +
+                unidades.map(u => `<option value="${u}">${u}</option>`).join('');
+        }
+
+        async function limpiarfiltros() {
+            document.getElementById('filter-unidad').value = '';
+            document.getElementById('filter-estado').value = '';
+            document.getElementById('filter-tipo-equipo').value = '';
+            document.getElementById('filter-area').value = '';
+            document.getElementById('filtro-buscar').value = '';
+
+
+
+            // Cargar unidades para filtro
+            cargarEquipos();
+            cargarEstadisticas();
+        }
+        async function verEquipos() {
+            const unidad = document.getElementById('filter-unidad').value;
+            const estado = document.getElementById('filter-estado').value;
+
+            let url = '/equipos?';
+            if (unidad) url += `unidad=${unidad}&`;
+            if (estado) url += `estado=${estado}&`;
+
+            const data = await apiCall(url);
+            if (!data) return;
+
+            const tbody = document.querySelector('#tabla-equipos tbody');
+            tbody.innerHTML = data.equipos.map(eq => `
+                <tr>
+                    <td>${eq.nombre_equipo}</td>
+                    <td>${eq.marca_equipo} ${eq.modelo_equipo}</td>
+                    <td>${eq.unidad_actual}</td>
+                    <td><span class="badge badge-${eq.estado_equipo.toLowerCase().replace(' ', '')}">${eq.estado_equipo}</span></td>
+                    <td>${eq.ip_equipo || 'N/A'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick='abrirModalDetalles(${JSON.stringify(eq)})'>Ver</button>
+                        <button class="btn btn-sm btn-warning" onclick="abrirModalEstado('${eq.nombre_equipo}')">Estado</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+
+        async function cargarMantenimientos() {
+            const data = await apiCall('/reportes/mantenimientos-periodo');
+            if (!data) return;
+
+            const tbody = document.querySelector('#tabla-mantenimientos tbody');
+            tbody.innerHTML = data.map(m => `
+                <tr>
+                    <td>${m.fk_equipo_id}</td>
+                    <td>${m.tipo_mantenimiento}</td>
+                    <td>${m.descripcion_mantenimiento}</td>
+                    <td>${m.tecnico || 'N/A'}</td>
+                    <td>${new Date(m.fecha_mantenimiento).toLocaleString('es-CO')}</td>
+                </tr>
+            `).join('');
+        }
+
+        async function cargarTraslados() {
+            // Cargar todos los traslados
+            const equipos = await apiCall('/equipos');
+            if (!equipos) return;
+
+            let traslados = [];
+            for (let eq of equipos.equipos) {
+                const tras = await apiCall(`/traslados/${eq.nombre_equipo}`);
+                traslados = traslados.concat(tras);
+            }
+
+            const tbody = document.querySelector('#tabla-traslados tbody');
+            tbody.innerHTML = traslados.map(t => `
+                <tr>
+                    <td>${t.fk_equipo_id}</td>
+                    <td>${t.sede_origen}</td>
+                    <td>${t.sede_destino}</td>
+                    <td>${t.tecnico || 'N/A'}</td>
+                    <td>${new Date(t.fecha).toLocaleString('es-CO')}</td>
+                </tr>
+            `).join('');
+        }
+
+        async function cargarResponsables() {
+            const equipos = await apiCall('/equipos');
+            if (!equipos) return;
+
+            let responsables = [];
+            for (let eq of equipos.equipos) {
+                const resp = await apiCall(`/responsables/${eq.nombre_equipo}`);
+                responsables = responsables.concat(resp);
+            }
+
+            const tbody = document.querySelector('#tabla-responsables tbody');
+            tbody.innerHTML = responsables.map(r => `
+                <tr>
+                    <td>${r.fk_equipo_id}</td>
+                    <td>${r.tecnico}</td>
+                    <td>${new Date(r.Fecha_Inicio).toLocaleDateString('es-CO')}</td>
+                    <td><span class="badge ${r.Activo ? 'badge-operativo' : 'badge-baja'}">${r.Activo ? 'Activo' : 'Inactivo'}</span></td>
+                </tr>
+            `).join('');
+        }
+
+        async function cargarUsuarios() {
+            const data = await apiCall('/usuarios');
+            if (!data) return;
+
+            const tbody = document.querySelector('#tabla-usuarios tbody');
+            tbody.innerHTML = data.map(u => `
+                <tr>
+                    <td>${u.cedula_usuario}</td>
+                    <td>${u.nombre_usuario}</td>
+                    <td>${u.nombre_rol}</td>
+                    <td><span class="badge ${u.estado_usuario ? 'badge-operativo' : 'badge-baja'}">${u.estado_usuario ? 'Activo' : 'Inactivo'}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="eliminarUsuario(${u.cedula_usuario})">Desactivar</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // ==================== MODALES ====================
+        function abrirModal(modalId) {
+            document.getElementById(modalId).classList.add('show');
+        }
+
+        function cerrarModal(modalId) {
+            document.getElementById(modalId).classList.remove('show');
+        }
+
+        async function abrirModalEstado(equipo) {
+            document.getElementById('estado-equipo').value = equipo;
+            abrirModal('modal-estado');
+        }
+        async function abrirModalDetalles(equipo) {
+            document.getElementById('detalles-contenido').innerHTML = Object.entries(equipo)
+                .map(([key, value]) => `
+                    <div class="detail-row">
+                        <div class="detail-label">${key.replace(/_/g, ' ')}</div>
+                        <div class="detail-value">${value || 'NO APLICA'}</div>
+                    </div>
+                `).join('');
+            abrirModal('modal-detalles');
+        }
+        async function abrirModalMantenimiento() {
+            const equipos = await apiCall('/equipos');
+            document.getElementById('mant-equipo').innerHTML =
+                equipos.equipos.map(e => `<option value="${e.nombre_equipo}">${e.nombre_equipo}</option>`).join('');
+            abrirModal('modal-mantenimiento');
+        }
+
+        async function abrirModalTraslado() {
+            const equipos = await apiCall('/equipos');
+            document.getElementById('tras-equipo').innerHTML =
+                equipos.equipos.map(e => `<option value="${e.nombre_equipo}">${e.nombre_equipo}</option>`).join('');
+            abrirModal('modal-traslado');
+        }
+
+        async function abrirModalResponsable() {
+            const [equipos, usuarios] = await Promise.all([
+                apiCall('/equipos'),
+                apiCall('/usuarios')
+            ]);
+
+            document.getElementById('resp-equipo').innerHTML =
+                equipos.equipos.map(e => `<option value="${e.nombre_equipo}">${e.nombre_equipo}</option>`).join('');
+
+            document.getElementById('resp-tecnico').innerHTML =
+                usuarios.map(u => `<option value="${u.cedula_usuario}">${u.nombre_usuario}</option>`).join('');
+
+            abrirModal('modal-responsable');
+        }
+
+        async function abrirModalUsuario() {
+            const roles = await apiCall('/roles');
+            document.getElementById('user-rol').innerHTML =
+                roles.map(r => `<option value="${r.id_rol}">${r.nombre_rol}</option>`).join('');
+            abrirModal('modal-usuario');
+        }
+
+        // ==================== ACCIONES ====================
+        async function cambiarEstado(e) {
+            e.preventDefault();
+            const equipo = document.getElementById('estado-equipo').value;
+            const estado = document.getElementById('estado-nuevo').value;
+
+            const result = await apiCall(`/equipos/${equipo}/estado`, 'PUT', { estado });
+            if (result && result.success) {
+                alert('Estado actualizado correctamente');
+                cerrarModal('modal-estado');
+                cargarEquipos();
+            } else {
+                alert(result.error || 'Error al actualizar estado');
+            }
+        }
+
+        function abrirModalDetalles(equipo) {
+            equipoActual = equipo;
+
+            const map = {
+                nombre_equipo: 'Nombre del Equipo',
+                marca_equipo: 'Marca',
+                modelo_equipo: 'Modelo',
+                arquitectura_equipo: 'Arquitectura',
+                tipo_equipo: 'Tipo de Equipo',
+                tipo_area: 'Tipo de Área',
+                procesador_equipo: 'Procesador',
+                ram_equipo: 'RAM (GB)',
+                tipo_ram: 'Tipo de RAM',
+                disco_equipo: 'Discos',
+                ip_equipo: 'IP',
+                unidad_actual: 'Unidad',
+                mac_equipo: 'MAC',
+                sistema_operativo: 'Sistema Operativo',
+                licencia_windows_equipo: 'Licencia de Windows',
+                placa_torre: 'Placa de la Torre',
+                placa_monitor: 'Placa del Monitor',
+                office: 'Office',
+                version_office: 'Versión de Office',
+                antivirus: 'Antivirus',
+                area: 'Área',
+                estado_equipo: 'Estado',
+                observaciones: 'Observaciones',
+                fecha_actualizacion_equipo: 'Fecha de Actualización'
+            };
+
+            document.getElementById('detalles-contenido').innerHTML =
+                Object.entries(map).map(([key, label]) => `
+                    <div class="detail-row">
+                        <div class="detail-label">${label}</div>
+                        <div class="detail-value">${equipo[key] ?? 'NO APLICA'}</div>
+                    </div>
+                `).join('');
+
+            abrirModal('modal-detalles');
+        }
+
+
+        async function registrarMantenimiento(e) {
+            e.preventDefault();
+            const data = {
+                equipo: document.getElementById('mant-equipo').value,
+                tipo: document.getElementById('mant-tipo').value,
+                descripcion: document.getElementById('mant-descripcion').value
+            };
+
+            const result = await apiCall('/mantenimientos', 'POST', data);
+            if (result && result.success) {
+                alert('Mantenimiento registrado');
+                cerrarModal('modal-mantenimiento');
+                cargarMantenimientos();
+            } else {
+                alert(result.error || 'Error al registrar mantenimiento');
+            }
+        }
+
+        async function registrarTraslado(e) {
+            e.preventDefault();
+            const data = {
+                equipo: document.getElementById('tras-equipo').value,
+                origen: document.getElementById('tras-origen').value,
+                destino: document.getElementById('tras-destino').value,
+                observacion: document.getElementById('tras-observacion').value
+            };
+
+            const result = await apiCall('/traslados', 'POST', data);
+            if (result && result.success) {
+                alert('Traslado registrado');
+                cerrarModal('modal-traslado');
+                cargarTraslados();
+            } else {
+                alert(result.error || 'Error al registrar traslado');
+            }
+        }
+
+        async function abrirModalResponsable() {
+            const [equipos, usuarios] = await Promise.all([
+                apiCall('/equipos'),
+                apiCall('/usuarios')
+            ]);
+
+            if (!equipos || !usuarios) return;
+
+            document.getElementById('resp-equipo').innerHTML =
+                equipos.equipos.map(e =>
+                    `<option value="${e.nombre_equipo}">${e.nombre_equipo}</option>`
+                ).join('');
+
+            document.getElementById('resp-tecnico').innerHTML =
+                usuarios.map(u =>
+                    `<option value="${u.cedula_usuario}">${u.nombre_usuario}</option>`
+                ).join('');
+
+            abrirModal('modal-responsable');
+        }
+        
+        async function guardarResponsable(e) {
+            e.preventDefault();
+
+            const data = {
+                equipo: document.getElementById('resp-equipo').value,
+                tecnico: document.getElementById('resp-tecnico').value,
+                observacion: document.getElementById('resp-observacion').value
+            };
+
+            const result = await apiCall('/responsables', 'POST', data);
+
+            if (result && result.success) {
+                alert('Responsable asignado');
+                cerrarModal('modal-responsable');
+                cargarResponsables();
+            } else {
+                alert(result?.error || 'Error al asignar responsable');
+            }
+        }
+
+
+        async function guardarUsuario(e) {
+            e.preventDefault();
+            const data = {
+                cedula: document.getElementById('user-cedula').value,
+                nombre: document.getElementById('user-nombre').value,
+                password: document.getElementById('user-password').value,
+                rol_id: document.getElementById('user-rol').value
+            };
+
+            const result = await apiCall('/usuarios', 'POST', data);
+            if (result && result.success) {
+                alert('Usuario creado');
+                cerrarModal('modal-usuario');
+                cargarUsuarios();
+            } else {
+                alert(result.error || 'Error al crear usuario');
+            }
+        }
+
+        async function eliminarUsuario(cedula) {
+            if (!confirm('¿Desactivar este usuario?')) return;
+
+            const result = await apiCall(`/usuarios/${cedula}`, 'DELETE');
+            if (result && result.success) {
+                alert('Usuario desactivado');
+                cargarUsuarios();
+            }
+        }
+
+
+
+        async function exportarCSV() {
+            window.open(`${API_URL}/exportar/csv`, '_blank');
+        }
+       
+        const LOGO_SUBRED = "{{ url_for('static', filename='logosubred.png') }}";
+        const LOGO_SECRETARIA = "{{ url_for('static', filename='secretariadesalud.png') }}";
+
+        function imprimirPDF() {
+            if (!equipoActual) {
+                alert('No hay equipo seleccionado');
+                return;
+            }
+
+            const fecha = new Date().toLocaleDateString('es-CO', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+
+            const pdfTemplate = document.getElementById('pdf-template');
+            pdfTemplate.innerHTML = `
+                <div style="font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto;">
+                    <!-- Encabezado -->
+                    <div style="text-align: center; border-bottom: 4px solid #3b5fff; padding-bottom: 20px; margin-bottom: 30px;">
+                        <img src="${LOGO_SUBRED}" style="width: 200px; float: left; margin-top: -10px;">
+                        <img src="${LOGO_SECRETARIA}" style="width: 200px; float: right; margin-top: -10px;">
+                        <h1 style="color: #3b5fff; margin: 0; font-size: 32px; margin-left:auto; margin-right:auto;">HOJA DE VIDA DEL EQUIPO</h1>
+                        <p style="color: #000; margin-top: 10px; font-size: 14px; text-align: center;">Sistema de Inventario TI</p>
+                        <p style="color: #000; font-size: 12px; text-align: center;">Generado el: ${fecha}</p>
+                    </div>
+
+                    <!-- Información General -->
+                    <div style="background: linear-gradient(135deg, #3b5fff 0%, #709bf7 100%); color: #000; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                        <h2 style="margin: 0 0 15px 0; font-size: 24px; color: #000;">${equipoActual.nombre_equipo || 'NO APLICA'}</h2>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;color: #000;">
+                            <div><strong>Serial:</strong> ${equipoActual.serial_equipo || 'NO APLICA'}</div>
+                            <div><strong>IP:</strong> ${equipoActual.ip_equipo || 'NO APLICA'}</div>
+                            <div><strong>Unidad:</strong> ${equipoActual.unidad_actual || 'NO APLICA'}</div>
+                            <div><strong>Área:</strong> ${equipoActual.tipo_area || 'NO APLICA'}</div>
+                        </div>
+                    </div>
+
+                    <!-- Hardware -->
+                    <div style="margin-bottom: 25px;">
+                        <h3 style="background: #3b5fff; color: #000; padding: 10px; border-radius: 5px; margin: 0 0 15px 0;">
+                            🖥️ Información de Hardware para ${equipoActual.nombre_equipo || 'NO APLICA'}
+                        </h3>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 12px; font-weight: bold; width: 40%; color: #3b5fff;">Marca</td>
+                                <td style="padding: 12px;">${equipoActual.marca_equipo || 'NO APLICA'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 12px; font-weight: bold; color: #3b5fff;">Modelo</td>
+                                <td style="padding: 12px;">${equipoActual.modelo_equipo || 'NO APLICA'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 12px; font-weight: bold; color: #3b5fff;">Tipo de Equipo</td>
+                                <td style="padding: 12px;">${equipoActual.tipo_equipo || 'NO APLICA'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 12px; font-weight: bold; color: #3b5fff;">Procesador</td>
+                                <td style="padding: 12px;">${equipoActual.procesador_equipo || 'NO APLICA'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 12px; font-weight: bold; color: #3b5fff;">RAM</td>
+                                <td style="padding: 12px;">${equipoActual.ram_equipo || 'NO APLICA'} GB - ${equipoActual.tipo_ram || 'NO APLICA'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 12px; font-weight: bold; color: #3b5fff;">Disco(s)</td>
+                                <td style="padding: 12px;">${equipoActual.disco_equipo || 'NO APLICA'}</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <!-- Red -->
+                    <div style="margin-bottom: 25px;">
+                        <h3 style="background: #3b5fff; color: #000; padding: 10px; border-radius: 5px; margin: 0 0 15px 0;">
+                            🌐 Configuración de Red
+                        </h3>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 12px; font-weight: bold; width: 40%; color: #3b5fff;">Dirección IP</td>
+                                <td style="padding: 12px;">${equipoActual.ip_equipo || 'NO APLICA'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 12px; font-weight: bold; color: #3b5fff;">Dirección MAC</td>
+                                <td style="padding: 12px;">${equipoActual.mac_equipo || 'NO APLICA'}</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <!-- Software -->
+                    <div style="margin-bottom: 25px;">
+                        <h3 style="background: #3b5fff; color: #000; padding: 10px; border-radius: 5px; margin: 0 0 15px 0;">
+                             Software Instalado
+                        </h3>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 12px; font-weight: bold; width: 40%; color: #3b5fff;">Sistema Operativo</td>
+                                <td style="padding: 12px;">${equipoActual.sistema_operativo || 'NO APLICA'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 12px; font-weight: bold; color: #3b5fff;">Arquitectura</td>
+                                <td style="padding: 12px;">${equipoActual.arquitectura_equipo || 'NO APLICA'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 12px; font-weight: bold; color: #3b5fff;">Licencia Windows</td>
+                                <td style="padding: 12px;">${equipoActual.licencia_windows_equipo || 'NO APLICA'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 12px; font-weight: bold; color: #3b5fff;">Office</td>
+                                <td style="padding: 12px;">${equipoActual.office || 'NO APLICA'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 12px; font-weight: bold; color: #3b5fff;">Versión Office</td>
+                                <td style="padding: 12px;">${equipoActual.version_office || 'NO APLICA'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 12px; font-weight: bold; color: #3b5fff;">Antivirus</td>
+                                <td style="padding: 12px;">${equipoActual.antivirus_equipo || 'NO APLICA'}</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <!-- Ubicación -->
+                    <div style="margin-bottom: 25px;">
+                        <h3 style="background: #3b5fff; color: #000; padding: 10px; border-radius: 5px; margin: 0 0 15px 0;">
+                             Ubicación y Asignación
+                        </h3>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 12px; font-weight: bold; width: 40%; color: #3b5fff;">Unidad</td>
+                                <td style="padding: 12px;">${equipoActual.unidad_actual || 'NO APLICA'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 12px; font-weight: bold; color: #3b5fff;">Tipo de Área</td>
+                                <td style="padding: 12px;">${equipoActual.tipo_area || 'NO APLICA'}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 12px; font-weight: bold; color: #3b5fff;">Observaciones</td>
+                                <td style="padding: 12px;">${equipoActual.observaciones || 'Ninguna'}</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <!-- Registro -->
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #3b5fff;">
+                        <p style="margin: 0; color: #666; font-size: 12px;">
+                            <strong>Última actualización:</strong> ${equipoActual.fecha_actualizacion_equipo ? new Date(equipoActual.fecha_actualizacion_equipo).toLocaleString('es-CO') : 'NO APLICA'}
+                        </p>
+                    </div>
+
+                    <!-- Pie de página -->
+                    <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #e0e0e0; text-align: center; color: #999; font-size: 12px;">
+                        <p>Este documento fue generado automáticamente por el Sistema de Inventario TI</p>
+                        <p style="margin-top: 10px;">
+                            <strong>© Desarrollado por Wendy Caroline Cardenas Villalobos</strong>
+                        </p>
+                        <div style="margin-top: 40px; border-top: 1px solid #ccc; width: 300px; margin-left: auto; margin-right: auto; padding-top: 5px;">
+                            Subred Centro Oriente - Inventario TI 2026 
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Abrir ventana de impresión
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Hoja de Vida - ${equipoActual.nombre_equipo}</title>
+                    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icono.png') }}">
+                    <style>
+                        @media print {
+                            body { margin: 0; }
+                            @page { margin: 1cm; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    ${pdfTemplate.innerHTML}
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+
+            // Esperar a que cargue y luego imprimir
+            setTimeout(() => {
+                printWindow.print();
+            }, 250);
+        }
+
+        async function generarReporteEstados() {
+            const data = await apiCall('/reportes/historial-estados');
+            document.getElementById('reporte-contenido').innerHTML = `
+                <h3>Historial de Cambios de Estado</h3>
+                <table>
+                    <thead>
+                        <tr><th>Equipo</th><th>Estado Anterior</th><th>Estado Nuevo</th><th>Fecha</th></tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(h => `
+                            <tr>
+                                <td>${h.fk_equipo_id}</td>
+                                <td>${h.estado_anterior}</td>
+                                <td>${h.estado_nuevo}</td>
+                                <td>${new Date(h.fecha_estado).toLocaleString('es-CO')}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        async function generarReporteTecnicos() {
+            const data = await apiCall('/reportes/equipos-por-tecnico');
+            document.getElementById('reporte-contenido').innerHTML = `
+                <h3>Equipos Asignados por Técnico</h3>
+                <table>
+                    <thead>
+                        <tr><th>Técnico</th><th>Total Equipos</th><th>Equipos</th></tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(t => `
+                            <tr>
+                                <td>${t.nombre_usuario}</td>
+                                <td>${t.total_equipos}</td>
+                                <td>${t.equipos || 'Ninguno'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+        let equipoActual = null;
+    </script>
+    <div id="pdf-template" style="display:none"></div>
+
+</body>
+
+</html>
