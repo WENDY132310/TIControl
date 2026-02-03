@@ -74,7 +74,7 @@ def require_auth(f):
             return jsonify({"error": "No autorizado"}), 401
 
         try:
-            token = auth.split(" ")[1]  # SOLO el token
+            token = auth.split(" ")[1]
 
             query = """
                 SELECT u.*, r.Nombre_Rol
@@ -142,7 +142,6 @@ def login():
         if not user:
             return jsonify({"error": "Credenciales inválidas"}), 401
 
-       
         token = str(uuid.uuid4())
 
         ejecutar_query(
@@ -181,7 +180,6 @@ def registrar_equipo():
         # Verificar si existe
         query_check = "SELECT Nombre_Equipo FROM Equipos WHERE Nombre_Equipo = %s"
         existe = ejecutar_query(query_check, (data['Nombre_Equipo'],), fetchone=True, fetchall=False)
-
         
         if existe:
             # Actualizar
@@ -234,7 +232,8 @@ def registrar_equipo():
                 data.get('Tipo_Area'), data.get('Unidad'), data.get('Procesador'),
                 data.get('RAM_GB'), data.get('Tipo_RAM'), data.get('Discos'),
                 data.get('Sistema_Operativo'), data.get('IP'), data.get('Observaciones'),
-                data.get('Arquitectura'), data.get('Placa_Equipo'),data.get('Placa_Pantalla'), data.get('Office'), data.get('Version_Office'),
+                data.get('Arquitectura'), data.get('Placa_Equipo'), data.get('Placa_Pantalla'), 
+                data.get('Office'), data.get('Version_Office'),
                 data.get('MAC'), data.get('Licencia_Windows'), data.get('Serial'),
                 data.get('Antivirus'), data.get('Modelo')
             )
@@ -354,7 +353,7 @@ def registrar_mantenimiento():
 @app.route('/api/mantenimientos/<equipo>', methods=['GET'])
 @require_auth
 def obtener_mantenimientos(equipo):
-    """Obtener historial de mantenimientos"""
+    """Obtener historial de mantenimientos de un equipo específico"""
     try:
         query = """
             SELECT m.*, u.Nombre_Usuario as tecnico
@@ -364,6 +363,24 @@ def obtener_mantenimientos(equipo):
             ORDER BY m.Fecha_Mantenimiento DESC
         """
         mantenimientos = ejecutar_query(query, (equipo,))
+        return jsonify([dict(m) for m in mantenimientos]), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/mantenimientos', methods=['GET'])
+@require_auth
+def listar_todos_mantenimientos():
+    """Listar TODOS los mantenimientos (OPTIMIZADO)"""
+    try:
+        query = """
+            SELECT m.*, u.Nombre_Usuario as tecnico, e.Marca_Equipo, e.Modelo_Equipo
+            FROM Historial_Mantenimiento m
+            LEFT JOIN Usuarios u ON m.fk_tecnico_id = u.Cedula_Usuario
+            LEFT JOIN Equipos e ON m.fk_equipo_id = e.Nombre_Equipo
+            ORDER BY m.Fecha_Mantenimiento DESC
+        """
+        mantenimientos = ejecutar_query(query)
         return jsonify([dict(m) for m in mantenimientos]), 200
         
     except Exception as e:
@@ -401,7 +418,7 @@ def registrar_traslado():
 @app.route('/api/traslados/<equipo>', methods=['GET'])
 @require_auth
 def obtener_traslados(equipo):
-    """Obtener historial de traslados"""
+    """Obtener historial de traslados de un equipo específico"""
     try:
         query = """
             SELECT t.*, u.Nombre_Usuario as tecnico
@@ -416,8 +433,26 @@ def obtener_traslados(equipo):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/traslados', methods=['GET'])
+@require_auth
+def listar_todos_traslados():
+    """Listar TODOS los traslados (OPTIMIZADO)"""
+    try:
+        query = """
+            SELECT t.*, u.Nombre_Usuario as tecnico, e.Marca_Equipo, e.Modelo_Equipo
+            FROM Historial_Traslados t
+            LEFT JOIN Usuarios u ON t.fk_tecnico_id = u.Cedula_Usuario
+            LEFT JOIN Equipos e ON t.fk_equipo_id = e.Nombre_Equipo
+            ORDER BY t.Fecha DESC
+        """
+        traslados = ejecutar_query(query)
+        return jsonify([dict(t) for t in traslados]), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # =====================================================
-# ENDPOINTS - RESPONSABLES (CORREGIDO)
+# ENDPOINTS - RESPONSABLES (OPTIMIZADO)
 # =====================================================
 @app.route('/api/responsables', methods=['POST'])
 @require_auth
@@ -443,17 +478,34 @@ def asignar_responsable():
 @app.route('/api/responsables/<equipo>', methods=['GET'])
 @require_auth
 def obtener_responsables(equipo):
-    """Obtener historial de responsables"""
+    """Obtener historial de responsables de un equipo específico"""
     try:
         query = """
             SELECT r.*, u.Nombre_Usuario as tecnico
             FROM Responsables_Equipo r
             JOIN Usuarios u ON r.fk_tecnico_id = u.Cedula_Usuario
-            JOIN Equipos e ON r.fk_equipo_id = e.Nombre_Equipo  -- Une con Equipos para mapear nombre a ID
-            WHERE e.Nombre_Equipo = %s  -- Compara con el nombre del equipo
+            WHERE r.fk_equipo_id = %s
             ORDER BY r.Fecha_Inicio DESC
         """
         responsables = ejecutar_query(query, (equipo,))
+        return jsonify([dict(r) for r in responsables]), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/responsables', methods=['GET'])
+@require_auth
+def listar_todos_responsables():
+    """Listar TODOS los responsables (NUEVO ENDPOINT OPTIMIZADO)"""
+    try:
+        query = """
+            SELECT r.*, u.Nombre_Usuario as tecnico, e.Marca_Equipo, e.Modelo_Equipo
+            FROM Responsables_Equipo r
+            JOIN Usuarios u ON r.fk_tecnico_id = u.Cedula_Usuario
+            JOIN Equipos e ON r.fk_equipo_id = e.Nombre_Equipo
+            ORDER BY r.Fecha_Inicio DESC
+        """
+        responsables = ejecutar_query(query)
         return jsonify([dict(r) for r in responsables]), 200
         
     except Exception as e:
@@ -495,7 +547,7 @@ def obtener_estadisticas():
         return jsonify({"error": str(e)}), 500
 
 # =====================================================
-# ENDPOINTS - USUARIOS (SOLO SUPERUSUARIO) - CORREGIDO
+# ENDPOINTS - USUARIOS (SOLO SUPERUSUARIO)
 # =====================================================
 @app.route('/api/usuarios', methods=['GET'])
 @require_auth
@@ -674,6 +726,9 @@ def reporte_mantenimientos_periodo():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# =====================================================
+# EXPORTAR CSV (CORREGIDO PARA AUTENTICACIÓN)
+# =====================================================
 @app.route('/api/exportar/csv', methods=['GET'])
 @require_auth
 def exportar_csv():
@@ -684,7 +739,7 @@ def exportar_csv():
         if not equipos:
             return jsonify({"error": "No hay datos para exportar"}), 404
         
-        # Crear CSV en memoria
+        # Crear CSV en memoria con UTF-8 BOM para Excel
         output = io.StringIO()
         
         columnas = equipos[0].keys()
@@ -694,15 +749,17 @@ def exportar_csv():
         for equipo in equipos:
             writer.writerow(dict(equipo))
         
-        # Convertir a bytes
+        # Convertir a bytes con UTF-8 BOM
         output.seek(0)
         mem_file = io.BytesIO()
+        # Agregar BOM para que Excel reconozca UTF-8
+        mem_file.write('\ufeff'.encode('utf-8'))
         mem_file.write(output.getvalue().encode('utf-8'))
         mem_file.seek(0)
         
         return send_file(
             mem_file,
-            mimetype='text/csv',
+            mimetype='text/csv; charset=utf-8',
             as_attachment=True,
             download_name=f'inventario_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
         )

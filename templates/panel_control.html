@@ -1083,22 +1083,17 @@
         }
 
         async function cargarResponsables() {
-            const equipos = await apiCall('/equipos');
-            if (!equipos) return;
-
-            let responsables = [];
-            for (let eq of equipos.equipos) {
-                const resp = await apiCall(`/responsables/${eq.nombre_equipo}`);
-                responsables = responsables.concat(resp);
-            }
+            // OPTIMIZADO: Carga todos los responsables de una vez
+            const responsables = await apiCall('/responsables');
+            if (!responsables) return;
 
             const tbody = document.querySelector('#tabla-responsables tbody');
             tbody.innerHTML = responsables.map(r => `
                 <tr>
                     <td>${r.fk_equipo_id}</td>
                     <td>${r.tecnico}</td>
-                    <td>${new Date(r.Fecha_Inicio).toLocaleDateString('es-CO')}</td>
-                    <td><span class="badge ${r.Activo ? 'badge-operativo' : 'badge-baja'}">${r.Activo ? 'Activo' : 'Inactivo'}</span></td>
+                    <td>${new Date(r.fecha_inicio).toLocaleDateString('es-CO')}</td>
+                    <td><span class="badge ${r.activo ? 'badge-operativo' : 'badge-baja'}">${r.activo ? 'Activo' : 'Inactivo'}</span></td>
                 </tr>
             `).join('');
         }
@@ -1146,6 +1141,10 @@
         }
         async function abrirModalMantenimiento() {
             const equipos = await apiCall('/equipos');
+            if (!equipos || !equipos.equipos) {
+                alert('Error al cargar equipos');
+                return;
+            }
             document.getElementById('mant-equipo').innerHTML =
                 equipos.equipos.map(e => `<option value="${e.nombre_equipo}">${e.nombre_equipo}</option>`).join('');
             abrirModal('modal-mantenimiento');
@@ -1153,24 +1152,13 @@
 
         async function abrirModalTraslado() {
             const equipos = await apiCall('/equipos');
+            if (!equipos || !equipos.equipos) {
+                alert('Error al cargar equipos');
+                return;
+            }
             document.getElementById('tras-equipo').innerHTML =
                 equipos.equipos.map(e => `<option value="${e.nombre_equipo}">${e.nombre_equipo}</option>`).join('');
             abrirModal('modal-traslado');
-        }
-
-        async function abrirModalResponsable() {
-            const [equipos, usuarios] = await Promise.all([
-                apiCall('/equipos'),
-                apiCall('/usuarios')
-            ]);
-
-            document.getElementById('resp-equipo').innerHTML =
-                equipos.equipos.map(e => `<option value="${e.nombre_equipo}">${e.nombre_equipo}</option>`).join('');
-
-            document.getElementById('resp-tecnico').innerHTML =
-                usuarios.map(u => `<option value="${u.cedula_usuario}">${u.nombre_usuario}</option>`).join('');
-
-            abrirModal('modal-responsable');
         }
 
         async function abrirModalUsuario() {
@@ -1349,7 +1337,30 @@
 
 
         async function exportarCSV() {
-            window.open(`${API_URL}/exportar/csv`, '_blank');
+            try {
+                const response = await fetch(`${API_URL}/exportar/csv`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Error al exportar');
+                }
+                
+                // Convertir la respuesta a blob y descargar
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `inventario_${new Date().toISOString().split('T')[0]}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                alert('CSV exportado exitosamente');
+            } catch (error) {
+                alert('Error al exportar CSV: ' + error.message);
+            }
         }
        
         const LOGO_SUBRED = "{{ url_for('static', filename='logosubred.png') }}";
