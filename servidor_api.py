@@ -118,7 +118,7 @@ def require_superuser(f):
 def login():
     try:
         data = request.get_json()
-
+        print("ingreso al login")
         if not data:
             return jsonify({"error": "No se enviaron datos"}), 400
 
@@ -169,7 +169,7 @@ def login():
         return jsonify({"error": "Error interno del servidor"}), 500
 
 # =====================================================
-# ENDPOINTS - EQUIPOS
+# ENDPOINTS - EQUIPOS (CON FILTROS COMPLETOS)
 # =====================================================
 @app.route('/api/equipos', methods=['POST'])
 def registrar_equipo():
@@ -248,21 +248,37 @@ def registrar_equipo():
 @app.route('/api/equipos', methods=['GET'])
 @require_auth
 def listar_equipos():
-    """Listar equipos con filtros"""
+    """Listar equipos con TODOS los filtros implementados"""
     try:
         query = "SELECT * FROM Equipos WHERE 1=1"
         params = []
         
-        # Filtros
+        # FILTRO 1: Unidad
         if request.args.get('unidad'):
             query += " AND Unidad_Actual = %s"
             params.append(request.args.get('unidad'))
+        
+        # FILTRO 2: Estado
         if request.args.get('estado'):
             query += " AND Estado_Equipo = %s"
             params.append(request.args.get('estado'))
+        
+        # FILTRO 3: Tipo de Equipo
         if request.args.get('tipo'):
             query += " AND Tipo_Equipo = %s"
             params.append(request.args.get('tipo'))
+        
+        # FILTRO 4: Área (NUEVO - CORREGIDO)
+        if request.args.get('area'):
+            query += " AND Tipo_Area = %s"
+            params.append(request.args.get('area'))
+        
+        # FILTRO 5: Búsqueda por Nombre o IP (NUEVO - CORREGIDO)
+        if request.args.get('busqueda'):
+            busqueda = request.args.get('busqueda')
+            query += " AND (LOWER(Nombre_Equipo) LIKE %s OR LOWER(Ip_Equipo) LIKE %s)"
+            params.append(f'%{busqueda.lower()}%')
+            params.append(f'%{busqueda.lower()}%')
         
         query += " ORDER BY Nombre_Equipo"
         
@@ -299,8 +315,8 @@ def cambiar_estado(equipo):
     try:
         data = request.json
         nuevo_estado = data.get('estado')
-        
-        # Obtener estado actual
+        user = request.current_user
+         # Obtener estado actual
         query = "SELECT Estado_Equipo FROM Equipos WHERE Nombre_Equipo = %s"
         result = ejecutar_query(query, (equipo,), fetchone=True, fetchall=False)
         
@@ -309,9 +325,23 @@ def cambiar_estado(equipo):
         
         estado_anterior = result['estado_equipo']
         
-        # Actualizar estado
-        query_update = "UPDATE Equipos SET Estado_Equipo = %s WHERE Nombre_Equipo = %s"
-        ejecutar_query(query_update, (nuevo_estado, equipo), commit=True)
+        # Establecer rol para triggers
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if user['nombre_rol'] == 'ADMINISTRADOR':
+            cursor.execute("SET app.rol = 'ADMIN'")
+        else:
+            cursor.execute("SET app.rol = 'TECNICO'")
+        
+        cursor.execute("""
+            UPDATE Equipos 
+            SET Estado_Equipo = %s 
+            WHERE Nombre_Equipo = %s
+        """, (nuevo_estado, equipo))
+        
+        conn.commit()
+        conn.close()
         
         # Registrar en historial
         query_historial = """
@@ -337,7 +367,7 @@ def registrar_mantenimiento():
         
         query = """
             INSERT INTO Historial_Mantenimiento (
-                fk_equipo_id, Tipo_Mantenimiento, Descripcion, fk_tecnico_id
+                fk_equipo_id, Tipo_Mantenimiento, Descripcion_Mantenimiento, fk_tecnico_id
             ) VALUES (%s, %s, %s, %s)
         """
         ejecutar_query(query, (
@@ -371,16 +401,27 @@ def obtener_mantenimientos(equipo):
 @app.route('/api/mantenimientos', methods=['GET'])
 @require_auth
 def listar_todos_mantenimientos():
-    """Listar TODOS los mantenimientos (OPTIMIZADO)"""
+    """Listar TODOS los mantenimientos (OPTIMIZADO CON BÚSQUEDA)"""
     try:
         query = """
             SELECT m.*, u.Nombre_Usuario as tecnico, e.Marca_Equipo, e.Modelo_Equipo
             FROM Historial_Mantenimiento m
             LEFT JOIN Usuarios u ON m.fk_tecnico_id = u.Cedula_Usuario
             LEFT JOIN Equipos e ON m.fk_equipo_id = e.Nombre_Equipo
-            ORDER BY m.Fecha_Mantenimiento DESC
+            WHERE 1=1
         """
-        mantenimientos = ejecutar_query(query)
+        params = []
+        
+        # FILTRO: Búsqueda por equipo
+        if request.args.get('busqueda'):
+            busqueda = request.args.get('busqueda')
+            query += " AND (LOWER(m.fk_equipo_id) LIKE %s OR LOWER(e.Ip_Equipo) LIKE %s)"
+            params.append(f'%{busqueda.lower()}%')
+            params.append(f'%{busqueda.lower()}%')
+        
+        query += " ORDER BY m.Fecha_Mantenimiento DESC"
+        
+        mantenimientos = ejecutar_query(query, tuple(params) if params else None)
         return jsonify([dict(m) for m in mantenimientos]), 200
         
     except Exception as e:
@@ -398,7 +439,7 @@ def registrar_traslado():
         
         query = """
             INSERT INTO Historial_Traslados (
-                fk_equipo_id, Origen, Destino, Motivo, fk_tecnico_id
+                fk_equipo_id, Sede_Origen, Sede_Destino, Observacion, fk_tecnico_id
             ) VALUES (%s, %s, %s, %s, %s)
         """
         ejecutar_query(query, (
@@ -436,44 +477,109 @@ def obtener_traslados(equipo):
 @app.route('/api/traslados', methods=['GET'])
 @require_auth
 def listar_todos_traslados():
-    """Listar TODOS los traslados (OPTIMIZADO)"""
+    """Listar TODOS los traslados (OPTIMIZADO CON BÚSQUEDA)"""
     try:
         query = """
             SELECT t.*, u.Nombre_Usuario as tecnico, e.Marca_Equipo, e.Modelo_Equipo
             FROM Historial_Traslados t
             LEFT JOIN Usuarios u ON t.fk_tecnico_id = u.Cedula_Usuario
             LEFT JOIN Equipos e ON t.fk_equipo_id = e.Nombre_Equipo
-            ORDER BY t.Fecha DESC
+            WHERE 1=1
         """
-        traslados = ejecutar_query(query)
+        params = []
+        
+        # FILTRO: Búsqueda por equipo
+        if request.args.get('busqueda'):
+            busqueda = request.args.get('busqueda')
+            query += " AND (LOWER(t.fk_equipo_id) LIKE %s OR LOWER(e.Ip_Equipo) LIKE %s)"
+            params.append(f'%{busqueda.lower()}%')
+            params.append(f'%{busqueda.lower()}%')
+        
+        query += " ORDER BY t.Fecha DESC"
+        
+        traslados = ejecutar_query(query, tuple(params) if params else None)
         return jsonify([dict(t) for t in traslados]), 200
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 # =====================================================
-# ENDPOINTS - RESPONSABLES (OPTIMIZADO)
+# ENDPOINTS - RESPONSABLES (OPTIMIZADO Y COMPLETO)
 # =====================================================
 @app.route('/api/responsables', methods=['POST'])
 @require_auth
 def asignar_responsable():
-    """Asignar responsable a equipo"""
+    """Asignar responsable a equipo - VALIDA QUE NO HAYA RESPONSABLE ACTIVO"""
     try:
         data = request.json
+        equipo = data['equipo']
+        tecnico = data['tecnico']
         
+        # VALIDAR: Verificar si ya tiene un responsable activo
+        query_check = """
+            SELECT fk_tecnico_id, u.Nombre_Usuario
+            FROM Responsables_Equipo r
+            JOIN Usuarios u ON r.fk_tecnico_id = u.Cedula_Usuario
+            WHERE r.fk_equipo_id = %s AND r.Activo = TRUE
+        """
+        responsable_activo = ejecutar_query(query_check, (equipo,), fetchone=True, fetchall=False)
+        
+        if responsable_activo:
+            return jsonify({
+                "error": f"Este equipo ya tiene un responsable activo: {responsable_activo['nombre_usuario']}. Debe liberarlo primero."
+            }), 400
+        
+        # Si no hay responsable activo, asignar
         query = """
             INSERT INTO Responsables_Equipo (
                 fk_equipo_id, fk_tecnico_id, Observacion
             ) VALUES (%s, %s, %s)
         """
         ejecutar_query(query, (
-            data['equipo'], data['tecnico'], data.get('observacion')
+            equipo, tecnico, data.get('observacion')
         ), commit=True)
         
-        return jsonify({"success": True, "mensaje": "Responsable asignado"}), 200
+        return jsonify({"success": True, "mensaje": "Responsable asignado correctamente"}), 200
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/responsables/<equipo>', methods=['PUT'])
+@require_auth
+def liberar_responsable(equipo):
+    """Liberar responsable por nombre de equipo"""
+    try:
+        data = request.json
+        activo = data.get('activo', False)
+
+        query = """
+            UPDATE Responsables_Equipo
+            SET Activo = %s,
+                Fecha_Fin = CURRENT_TIMESTAMP
+            WHERE fk_equipo_id = %s
+              AND Activo = true
+        """
+        ejecutar_query(query, (activo, equipo), commit=True)
+
+        return jsonify({"success": True, "mensaje": "Responsable liberado correctamente"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
+@app.route('/api/responsables/historial/<equipo>', methods=['GET'])
+@require_auth
+def historial_responsable(equipo):
+    query = """
+        SELECT r.*, u.Nombre_Usuario 
+        FROM Responsables r 
+        JOIN Usuarios u ON r.fk_tecnico_id = u.Cedula_Usuario 
+        WHERE fk_equipo_id = %s 
+        ORDER BY Fecha_Inicio DESC
+    """
+    historial = ejecutar_query(query, (equipo,))
+    return jsonify([dict(h) for h in historial]), 200
 
 @app.route('/api/responsables/<equipo>', methods=['GET'])
 @require_auth
@@ -493,19 +599,31 @@ def obtener_responsables(equipo):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 @app.route('/api/responsables', methods=['GET'])
 @require_auth
 def listar_todos_responsables():
-    """Listar TODOS los responsables (NUEVO ENDPOINT OPTIMIZADO)"""
+    """Listar TODOS los responsables (OPTIMIZADO CON BÚSQUEDA)"""
     try:
         query = """
             SELECT r.*, u.Nombre_Usuario as tecnico, e.Marca_Equipo, e.Modelo_Equipo
             FROM Responsables_Equipo r
             JOIN Usuarios u ON r.fk_tecnico_id = u.Cedula_Usuario
             JOIN Equipos e ON r.fk_equipo_id = e.Nombre_Equipo
-            ORDER BY r.Fecha_Inicio DESC
+            WHERE 1=1
         """
-        responsables = ejecutar_query(query)
+        params = []
+        
+        # FILTRO: Búsqueda por equipo
+        if request.args.get('busqueda'):
+            busqueda = request.args.get('busqueda')
+            query += " AND (LOWER(r.fk_equipo_id) LIKE %s OR LOWER(e.Ip_Equipo) LIKE %s)"
+            params.append(f'%{busqueda.lower()}%')
+            params.append(f'%{busqueda.lower()}%')
+        
+        query += " ORDER BY r.Fecha_Inicio DESC"
+        
+        responsables = ejecutar_query(query, tuple(params) if params else None)
         return jsonify([dict(r) for r in responsables]), 200
         
     except Exception as e:
@@ -790,7 +908,7 @@ def health_check():
 # =====================================================
 if __name__ == '__main__':
     print("=" * 60)
-    print("SERVIDOR API INVENTARIO TI - PostgreSQL")
+    print("SERVIDOR API INVENTARIO TI - PostgreSQL (VERSIÓN CON FILTROS COMPLETOS)")
     print("=" * 60)
     print(f"Servidor iniciado en: http://192.168.80.125:5000")
     print(f"Base de datos: {DB_CONFIG['database']}")

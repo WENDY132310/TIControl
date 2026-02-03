@@ -559,6 +559,16 @@
                     <button class="btn btn-success" onclick="abrirModalMantenimiento()">
                         <i class="fas fa-plus"></i> Nuevo Mantenimiento
                     </button>
+                        <div class="filters">
+                            <input type="text" id="filtro-buscar-mantenimientos" 
+                                placeholder="Buscar por Nombre o IP">
+                            <button class="btn btn-primary" onclick="cargarMantenimientos()">
+                                <i class="fas fa-search"></i> Buscar
+                           <button class="btn btn-secondary" onclick="limpiarFiltros_Mantenimiento()">
+                                <i class="fas fa-broom"></i> Limpiar Filtros
+                            </button>
+                            </button>
+                        </div>
                     <table id="tabla-mantenimientos">
                         <thead>
                             <tr>
@@ -579,6 +589,16 @@
                     <button class="btn btn-success" onclick="abrirModalTraslado()">
                         <i class="fas fa-plus"></i> Nuevo Traslado
                     </button>
+                        <div class="filters">
+                            <input type="text" id="filtro-buscar-traslados" 
+                                placeholder="Buscar por Nombre o IP">
+                            <button class="btn btn-primary" onclick="cargarTraslados()">
+                                <i class="fas fa-search"></i> Buscar
+                            </button>
+                            <button class="btn btn-secondary" onclick="limpiarFiltros_Traslados()">
+                                <i class="fas fa-broom"></i> Limpiar Filtros
+                            </button>
+                        </div>
                     <table id="tabla-traslados">
                         <thead>
                             <tr>
@@ -599,6 +619,15 @@
                     <button class="btn btn-success" onclick="abrirModalResponsable()">
                         <i class="fas fa-plus"></i> Asignar Responsable
                     </button>
+                    <div class="filters">
+                        <input type="text" id="filtro-buscar-responsables" placeholder="Buscar por Nombre o IP">
+                        <button class="btn btn-primary" onclick="cargarResponsables()">
+                            <i class="fas fa-search"></i> Buscar
+                            <button class="btn btn-secondary" onclick="limpiarFiltros_responsables()">
+                                <i class="fas fa-broom"></i> Limpiar Filtros
+                            </button>
+                        </button>
+                    </div>
                     <table id="tabla-responsables">
                         <thead>
                             <tr>
@@ -729,11 +758,11 @@
                 </div>
                 <div class="form-group">
                     <label>Sede Origen</label>
-                    <input type="text" id="tras-origen" required>
+                    <select id="tras-origen" required></select>
                 </div>
                 <div class="form-group">
                     <label>Sede Destino</label>
-                    <input type="text" id="tras-destino" required>
+                    <select id="tras-destino" required></select>
                 </div>
                 <div class="form-group">
                     <label>Observación</label>
@@ -967,14 +996,14 @@
             const estado = document.getElementById('filter-estado').value;
             const tipoEquipo = document.getElementById('filter-tipo-equipo').value;
             const area = document.getElementById('filter-area').value;
-            const busqueda = document.getElementById('filtro-buscar').value.trim().toLowerCase();
+            const busqueda = document.getElementById('filtro-buscar').value.trim();
 
             let url = '/equipos?';
-            if (unidad) url += `unidad=${unidad}&`;
-            if (estado) url += `estado=${estado}&`;
-            if (tipoEquipo) url += `tipo_equipo=${tipoEquipo}&`;
-            if (area) url += `area=${area}&`;
-            if (busqueda) url += `busqueda=${busqueda}&`;
+            if (unidad) url += `unidad=${encodeURIComponent(unidad)}&`;
+            if (estado) url += `estado=${encodeURIComponent(estado)}&`;
+            if (tipoEquipo) url += `tipo=${encodeURIComponent(tipoEquipo)}&`;
+            if (area) url += `area=${encodeURIComponent(area)}&`;
+            if (busqueda) url += `busqueda=${encodeURIComponent(busqueda)}&`;
 
             const data = await apiCall(url);
             if (!data) return;
@@ -1002,7 +1031,7 @@
                 unidades.map(u => `<option value="${u}">${u}</option>`).join('');
         }
 
-        async function limpiarfiltros() {
+        async function limpiarFiltros() {
             document.getElementById('filter-unidad').value = '';
             document.getElementById('filter-estado').value = '';
             document.getElementById('filter-tipo-equipo').value = '';
@@ -1014,6 +1043,19 @@
             // Cargar unidades para filtro
             cargarEquipos();
             cargarEstadisticas();
+        }
+
+        async function limpiarFiltros_Mantenimiento() {
+            document.getElementById('filtro-buscar-mantenimientos').value = '';
+            cargarMantenimientos();
+        }
+        async function limpiarFiltros_Traslados() {
+            document.getElementById('filtro-buscar-traslados').value = '';
+            cargarTraslados();
+        }
+        async function limpiarFiltros_responsables() {
+            document.getElementById('filtro-buscar-responsables').value = '';
+            cargarResponsables();
         }
         async function verEquipos() {
             const unidad = document.getElementById('filter-unidad').value;
@@ -1044,7 +1086,14 @@
 
 
         async function cargarMantenimientos() {
-            const data = await apiCall('/reportes/mantenimientos-periodo');
+                // OPTIMIZADO: Con búsqueda
+            const busqueda = document.getElementById('filtro-buscar-mantenimientos')?.value.trim() || '';
+            
+            let url = '/mantenimientos?';
+            if (busqueda) url += `busqueda=${encodeURIComponent(busqueda)}&`;
+            
+            
+            const data = await apiCall(url);
             if (!data) return;
 
             const tbody = document.querySelector('#tabla-mantenimientos tbody');
@@ -1057,18 +1106,19 @@
                     <td>${new Date(m.fecha_mantenimiento).toLocaleString('es-CO')}</td>
                 </tr>
             `).join('');
+           
         }
 
         async function cargarTraslados() {
-            // Cargar todos los traslados
-            const equipos = await apiCall('/equipos');
-            if (!equipos) return;
-
-            let traslados = [];
-            for (let eq of equipos.equipos) {
-                const tras = await apiCall(`/traslados/${eq.nombre_equipo}`);
-                traslados = traslados.concat(tras);
-            }
+            // OPTIMIZADO: Carga todos los traslados de una vez CON BÚSQUEDA
+            
+            const busqueda = document.getElementById('filtro-buscar-traslados')?.value.trim() || '';
+            
+            let url = '/traslados?';
+            if (busqueda) url += `busqueda=${encodeURIComponent(busqueda)}&`;
+            
+            const traslados = await apiCall(url);
+            if (!traslados) return;
 
             const tbody = document.querySelector('#tabla-traslados tbody');
             tbody.innerHTML = traslados.map(t => `
@@ -1083,8 +1133,13 @@
         }
 
         async function cargarResponsables() {
-            // OPTIMIZADO: Carga todos los responsables de una vez
-            const responsables = await apiCall('/responsables');
+            // OPTIMIZADO: Con búsqueda
+            const busqueda = document.getElementById('filtro-buscar-responsables')?.value.trim() || '';
+            
+            let url = '/responsables?';
+            if (busqueda) url += `busqueda=${encodeURIComponent(busqueda)}&`;
+            
+            const responsables = await apiCall(url);
             if (!responsables) return;
 
             const tbody = document.querySelector('#tabla-responsables tbody');
@@ -1094,6 +1149,12 @@
                     <td>${r.tecnico}</td>
                     <td>${new Date(r.fecha_inicio).toLocaleDateString('es-CO')}</td>
                     <td><span class="badge ${r.activo ? 'badge-operativo' : 'badge-baja'}">${r.activo ? 'Activo' : 'Inactivo'}</span></td>
+                    <td>
+                        ${r.activo ? `<button class="btn btn-sm btn-danger"
+                            onclick="console.log('CLICK LIBERAR', '${r.fk_equipo_id}'); liberarResponsable('${r.fk_equipo_id}')">
+                        <i class="fas fa-unlock"></i> Liberar</button>` : ''}
+                        <button class="btn btn-sm btn-info" onclick="verHistorialResponsable('${r.fk_equipo_id}')"><i class="fas fa-history"></i> Historial</button>
+                    </td>
                 </tr>
             `).join('');
         }
@@ -1141,10 +1202,6 @@
         }
         async function abrirModalMantenimiento() {
             const equipos = await apiCall('/equipos');
-            if (!equipos || !equipos.equipos) {
-                alert('Error al cargar equipos');
-                return;
-            }
             document.getElementById('mant-equipo').innerHTML =
                 equipos.equipos.map(e => `<option value="${e.nombre_equipo}">${e.nombre_equipo}</option>`).join('');
             abrirModal('modal-mantenimiento');
@@ -1152,13 +1209,32 @@
 
         async function abrirModalTraslado() {
             const equipos = await apiCall('/equipos');
-            if (!equipos || !equipos.equipos) {
-                alert('Error al cargar equipos');
-                return;
-            }
             document.getElementById('tras-equipo').innerHTML =
                 equipos.equipos.map(e => `<option value="${e.nombre_equipo}">${e.nombre_equipo}</option>`).join('');
+             // Cargar unidades para filtro
+            const unidades = [...new Set(equipos.equipos.map(e => e.unidad_actual))];
+            document.getElementById('tras-origen').innerHTML =
+                '<option value="">Todas las unidades</option>' +
+                unidades.map(u => `<option value="${u}">${u}</option>`).join('');
+            document.getElementById('tras-destino').innerHTML =
+                '<option value="">Todas las unidades</option>' +
+                unidades.map(u => `<option value="${u}">${u}</option>`).join('');
             abrirModal('modal-traslado');
+        }
+
+        async function abrirModalResponsable() {
+            const [equipos, usuarios] = await Promise.all([
+                apiCall('/equipos'),
+                apiCall('/usuarios')
+            ]);
+
+            document.getElementById('resp-equipo').innerHTML =
+                equipos.equipos.map(e => `<option value="${e.nombre_equipo}">${e.nombre_equipo}</option>`).join('');
+
+            document.getElementById('resp-tecnico').innerHTML =
+                usuarios.map(u => `<option value="${u.cedula_usuario}">${u.nombre_usuario}</option>`).join('');
+
+            abrirModal('modal-responsable');
         }
 
         async function abrirModalUsuario() {
@@ -1283,7 +1359,68 @@
 
             abrirModal('modal-responsable');
         }
-        
+        async function liberarResponsable(equipo) {
+            if (!confirm('¿Está seguro de liberar este responsable?')) {
+                return;
+            }
+
+            const equipoEncoded = encodeURIComponent(equipo);
+
+            const result = await apiCall(
+                `/responsables/${equipoEncoded}`,
+                'PUT',
+                { activo: false }
+            );
+
+            if (result && result.success) {
+                alert('Responsable liberado correctamente');
+                cargarResponsables();
+            } else {
+                alert(result?.error || 'Error al liberar responsable');
+            }
+        }
+
+
+
+            async function verHistorialResponsable(equipo) {
+            const responsables = await apiCall(`/responsables/${equipo}`);
+            if (!responsables) {
+                alert('No se pudo cargar el historial');
+                return;
+            }
+
+            let html = `
+                <h3>Historial de Responsables - ${equipo}</h3>
+                <table style="width: 100%; margin-top: 20px;">
+                    <thead>
+                        <tr>
+                            <th>Técnico</th>
+                            <th>Desde</th>
+                            <th>Hasta</th>
+                            <th>Estado</th>
+                            <th>Observación</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${responsables.map(r => `
+                            <tr>
+                                <td>${r.tecnico}</td>
+                                <td>${new Date(r.fecha_inicio).toLocaleDateString('es-CO')}</td>
+                                <td>${r.fecha_fin ? new Date(r.fecha_fin).toLocaleDateString('es-CO') : 'Actual'}</td>
+                                <td><span class="badge ${r.activo ? 'badge-operativo' : 'badge-baja'}">${r.activo ? 'Activo' : 'Inactivo'}</span></td>
+                                <td>${r.observacion || 'N/A'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            // Mostrar en un modal
+            document.getElementById('detalles-contenido').innerHTML = html;
+            abrirModal('modal-detalles');
+        }
+
+
         async function guardarResponsable(e) {
             e.preventDefault();
 
@@ -1297,6 +1434,35 @@
 
             if (result && result.success) {
                 alert('Responsable asignado');
+                cerrarModal('modal-responsable');
+                cargarResponsables();
+            } else {
+                alert(result?.error || 'Error al asignar responsable');
+            }
+        }
+        async function asignarResponsable(e) {
+            e.preventDefault();
+
+            const equipo = document.getElementById('resp-equipo').value;
+            const tecnico = document.getElementById('resp-tecnico').value;
+            const observacion = document.getElementById('resp-observacion').value;
+
+            // Validar que haya seleccionado equipo y técnico
+            if (!equipo || !tecnico) {
+                alert('Debe seleccionar equipo y técnico');
+                return;
+            }
+
+            const data = {
+                equipo,
+                tecnico,
+                observacion
+            };
+
+            const result = await apiCall('/responsables', 'POST', data);
+
+            if (result && result.success) {
+                alert('Responsable asignado correctamente');
                 cerrarModal('modal-responsable');
                 cargarResponsables();
             } else {
@@ -1337,30 +1503,7 @@
 
 
         async function exportarCSV() {
-            try {
-                const response = await fetch(`${API_URL}/exportar/csv`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Error al exportar');
-                }
-                
-                // Convertir la respuesta a blob y descargar
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `inventario_${new Date().toISOString().split('T')[0]}.csv`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-                
-                alert('CSV exportado exitosamente');
-            } catch (error) {
-                alert('Error al exportar CSV: ' + error.message);
-            }
+            window.open(`${API_URL}/exportar/csv`, '_blank');
         }
        
         const LOGO_SUBRED = "{{ url_for('static', filename='logosubred.png') }}";
