@@ -530,7 +530,7 @@
                             <option value="Escritorio">Escritorio</option>
                             <option value="Portátil">Portátil</option>
                         </select>
-                        <input type="text" id="filtro-buscar" placeholder="Nombre ó IP">
+                        <input type="text" id="filtro-buscar" placeholder="Nombre, IP, Placa Torre equipo">
                         <button class="btn btn-primary" onclick="cargarEquipos()">
                             <i class="fas fa-search"></i> Buscar
                             <button class="btn btn-secondary" onclick="limpiarFiltros()">
@@ -606,6 +606,7 @@
                                 <th>Origen</th>
                                 <th>Destino</th>
                                 <th>Técnico</th>
+                                <th>Observación</th>
                                 <th>Fecha</th>
                             </tr>
                         </thead>
@@ -987,6 +988,14 @@
                     <div class="stat-number">${stats.por_estado?.Baja || 0}</div>
                     <div class="stat-label">De Baja</div>
                 </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.por_tipo?.Escritorio || 0}</div>
+                    <div class="stat-label">Escritorio</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.por_tipo?.Portátil || 0}</div>
+                    <div class="stat-label">Portátil</div>
+                </div>
             `;
             document.getElementById('stats-equipos').innerHTML = html;
         }
@@ -1127,6 +1136,7 @@
                     <td>${t.sede_origen}</td>
                     <td>${t.sede_destino}</td>
                     <td>${t.tecnico || 'N/A'}</td>
+                    <td>${t.observacion || 'N/A'}</td>
                     <td>${new Date(t.fecha).toLocaleString('es-CO')}</td>
                 </tr>
             `).join('');

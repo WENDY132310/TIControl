@@ -276,7 +276,8 @@ def listar_equipos():
         # FILTRO 5: Búsqueda por Nombre o IP (NUEVO - CORREGIDO)
         if request.args.get('busqueda'):
             busqueda = request.args.get('busqueda')
-            query += " AND (LOWER(Nombre_Equipo) LIKE %s OR LOWER(Ip_Equipo) LIKE %s)"
+            query += " AND (LOWER(Nombre_Equipo) LIKE %s OR LOWER(Ip_Equipo) LIKE %s OR LOWER(Placa_Torre) LIKE %s)"
+            params.append(f'%{busqueda.lower()}%')
             params.append(f'%{busqueda.lower()}%')
             params.append(f'%{busqueda.lower()}%')
         
@@ -444,7 +445,7 @@ def registrar_traslado():
         """
         ejecutar_query(query, (
             data['equipo'], data['origen'], data['destino'], 
-            data.get('motivo'), request.current_user.get('cedula_usuario') if hasattr(request, 'current_user') else None
+            data.get('observacion'), request.current_user.get('cedula_usuario') if hasattr(request, 'current_user') else None
         ), commit=True)
         
         # Actualizar unidad actual del equipo
@@ -798,7 +799,7 @@ def reporte_equipos_por_tecnico():
                    string_agg(r.fk_equipo_id, ', ') as equipos
             FROM Usuarios u
             LEFT JOIN Responsables_Equipo r ON u.Cedula_Usuario = r.fk_tecnico_id 
-                                             AND r.Activo = TRUE
+                                             
             WHERE u.Estado_Usuario = TRUE
             GROUP BY u.Cedula_Usuario, u.Nombre_Usuario
             ORDER BY total_equipos DESC
