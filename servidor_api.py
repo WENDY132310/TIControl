@@ -1,10 +1,13 @@
 from flask import Flask, request, jsonify, send_file, render_template
 from flask_cors import CORS
 from datetime import datetime
-import psycopg2
+import psycopg2 
 from psycopg2.extras import RealDictCursor
 import io
 import csv
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill
+from datetime import datetime
 import json
 from functools import wraps
 import sys
@@ -111,6 +114,33 @@ def require_superuser(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def require_write_permission(f):
+    """
+    Decorador que solo permite acceso a usuarios con permisos de escritura.
+    Bloquea a usuarios con rol CONSULTA.
+    
+    Uso:
+        @app.route('/api/equipos', methods=['POST'])
+        @require_auth
+        @require_write_permission  
+        def registrar_equipo():
+            ...
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not hasattr(request, 'current_user'):
+            return jsonify({"error": "No autorizado"}), 401
+        
+        # Verificar que el usuario NO sea de solo CONSULTA
+        if request.current_user['nombre_rol'] == 'CONSULTA':
+            return jsonify({
+                "error": "Acceso denegado. Usuario de solo lectura.",
+                "mensaje": "No tienes permisos para realizar esta acción. Contacta a un administrador si necesitas hacer cambios."
+            }), 403
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
 # =====================================================
 # ENDPOINTS - AUTENTICACIÓN
 # =====================================================
@@ -133,8 +163,8 @@ def login():
             FROM Usuarios u
             JOIN Roles r ON u.fk_Id_Rol = r.Id_Rol
             WHERE u.Cedula_Usuario = %s
-              AND u.Password_Usuario = %s
-              AND u.Estado_Usuario = TRUE
+            AND u.Password_Usuario = %s
+            AND u.Estado_Usuario = TRUE
         """
 
         user = ejecutar_query(query, (cedula, password), fetchone=True)
@@ -172,6 +202,8 @@ def login():
 # ENDPOINTS - EQUIPOS (CON FILTROS COMPLETOS)
 # =====================================================
 @app.route('/api/equipos', methods=['POST'])
+@require_auth
+@require_write_permission  
 def registrar_equipo():
     """Registrar o actualizar equipo"""
     try:
@@ -311,6 +343,7 @@ def obtener_equipo(equipo):
 
 @app.route('/api/equipos/<equipo>/estado', methods=['PUT'])
 @require_auth
+@require_write_permission
 def cambiar_estado(equipo):
     """Cambiar estado de equipo"""
     try:
@@ -361,24 +394,62 @@ def cambiar_estado(equipo):
 # =====================================================
 @app.route('/api/mantenimientos', methods=['POST'])
 @require_auth
+@require_write_permission
 def registrar_mantenimiento():
-    """Registrar mantenimiento"""
+    """Registrar mantenimiento y automatizar observaciones"""
     try:
         data = request.json
+        equipo = data['equipo']
+        tipo = data['tipo']
+        descripcion = data['descripcion']
+        tecnico_id = request.current_user.get('cedula_usuario') if hasattr(request, 'current_user') else None
         
-        query = """
-            INSERT INTO Historial_Mantenimiento (
-                fk_equipo_id, Tipo_Mantenimiento, Descripcion_Mantenimiento, fk_tecnico_id
-            ) VALUES (%s, %s, %s, %s)
-        """
-        ejecutar_query(query, (
-            data['equipo'], data['tipo'], data['descripcion'], 
-            request.current_user.get('cedula_usuario') if hasattr(request, 'current_user') else None
-        ), commit=True)
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
         
-        return jsonify({"success": True, "mensaje": "Mantenimiento registrado"}), 200
-        
+        try:
+            # 1. Guardar en el historial de mantenimientos
+            query_mant = """
+                INSERT INTO Historial_Mantenimiento (
+                    fk_equipo_id, Tipo_Mantenimiento, Descripcion_Mantenimiento, fk_tecnico_id
+                ) VALUES (%s, %s, %s, %s)
+            """
+            cur.execute(query_mant, (equipo, tipo, descripcion, tecnico_id))
+            
+            # 2. Consultar las observaciones actuales del equipo
+            cur.execute("SELECT Observaciones FROM Equipos WHERE Nombre_Equipo = %s", (equipo,))
+            equipo_actual = cur.fetchone()
+            obs_actuales = equipo_actual['observaciones'] if equipo_actual and equipo_actual['observaciones'] else ""
+            
+            # 3. Construir el nuevo texto para la Hoja de Vida
+            fecha_hoy = datetime.now().strftime("%d/%m/%Y")
+            texto_mantenimiento = f"Mantenimiento ({tipo} - {fecha_hoy}): {descripcion}"
+            
+            # Unir lo nuevo con lo viejo (para no borrar datos anteriores)
+            nueva_obs = f"{texto_mantenimiento}\n\n{obs_actuales}".strip()
+            
+            # 4. Actualizar la tabla Equipos
+            query_update = """
+                UPDATE Equipos 
+                SET Observaciones = %s,
+                    Fecha_actualizacion_equipo = CURRENT_TIMESTAMP
+                WHERE Nombre_Equipo = %s
+            """
+            cur.execute(query_update, (nueva_obs, equipo))
+            
+            conn.commit()
+            return jsonify({"success": True, "mensaje": "Mantenimiento registrado"}), 200
+            
+        except Exception as e:
+            conn.rollback()
+            raise e
+        finally:
+            cur.close()
+            conn.close()
+            
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/mantenimientos/<equipo>', methods=['GET'])
@@ -433,6 +504,7 @@ def listar_todos_mantenimientos():
 # =====================================================
 @app.route('/api/traslados', methods=['POST'])
 @require_auth
+@require_write_permission
 def registrar_traslado():
     """Registrar traslado"""
     try:
@@ -509,6 +581,7 @@ def listar_todos_traslados():
 # =====================================================
 @app.route('/api/responsables', methods=['POST'])
 @require_auth
+@require_write_permission
 def asignar_responsable():
     """Asignar responsable a equipo - VALIDA QUE NO HAYA RESPONSABLE ACTIVO"""
     try:
@@ -547,6 +620,7 @@ def asignar_responsable():
 
 @app.route('/api/responsables/<equipo>', methods=['PUT'])
 @require_auth
+@require_write_permission
 def liberar_responsable(equipo):
     """Liberar responsable por nombre de equipo"""
     try:
@@ -558,7 +632,7 @@ def liberar_responsable(equipo):
             SET Activo = %s,
                 Fecha_Fin = CURRENT_TIMESTAMP
             WHERE fk_equipo_id = %s
-              AND Activo = true
+            AND Activo = true
         """
         ejecutar_query(query, (activo, equipo), commit=True)
 
@@ -568,14 +642,13 @@ def liberar_responsable(equipo):
         return jsonify({"error": str(e)}), 500
 
 
-
 @app.route('/api/responsables/historial/<equipo>', methods=['GET'])
 @require_auth
 def historial_responsable(equipo):
     query = """
         SELECT r.*, u.Nombre_Usuario 
-        FROM Responsables r 
-        JOIN Usuarios u ON r.fk_tecnico_id = u.Cedula_Usuario 
+        FROM Responsables_Equipo r 
+        LEFT JOIN Usuarios u ON r.fk_tecnico_id = u.Cedula_Usuario 
         WHERE fk_equipo_id = %s 
         ORDER BY Fecha_Inicio DESC
     """
@@ -585,37 +658,31 @@ def historial_responsable(equipo):
 @app.route('/api/responsables/<equipo>', methods=['GET'])
 @require_auth
 def obtener_responsables(equipo):
-    """Obtener historial de responsables de un equipo específico"""
     try:
         query = """
             SELECT r.*, u.Nombre_Usuario as tecnico
             FROM Responsables_Equipo r
-            JOIN Usuarios u ON r.fk_tecnico_id = u.Cedula_Usuario
+            LEFT JOIN Usuarios u ON r.fk_tecnico_id = u.Cedula_Usuario
             WHERE r.fk_equipo_id = %s
             ORDER BY r.Fecha_Inicio DESC
         """
         responsables = ejecutar_query(query, (equipo,))
         return jsonify([dict(r) for r in responsables]), 200
-        
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 @app.route('/api/responsables', methods=['GET'])
 @require_auth
 def listar_todos_responsables():
-    """Listar TODOS los responsables (OPTIMIZADO CON BÚSQUEDA)"""
     try:
         query = """
             SELECT r.*, u.Nombre_Usuario as tecnico, e.Marca_Equipo, e.Modelo_Equipo
             FROM Responsables_Equipo r
-            JOIN Usuarios u ON r.fk_tecnico_id = u.Cedula_Usuario
-            JOIN Equipos e ON r.fk_equipo_id = e.Nombre_Equipo
+            LEFT JOIN Usuarios u ON r.fk_tecnico_id = u.Cedula_Usuario
+            LEFT JOIN Equipos e ON r.fk_equipo_id = e.Nombre_Equipo
             WHERE 1=1
         """
         params = []
-        
-        # FILTRO: Búsqueda por equipo
         if request.args.get('busqueda'):
             busqueda = request.args.get('busqueda')
             query += " AND (LOWER(r.fk_equipo_id) LIKE %s OR LOWER(e.Ip_Equipo) LIKE %s)"
@@ -623,10 +690,8 @@ def listar_todos_responsables():
             params.append(f'%{busqueda.lower()}%')
         
         query += " ORDER BY r.Fecha_Inicio DESC"
-        
         responsables = ejecutar_query(query, tuple(params) if params else None)
         return jsonify([dict(r) for r in responsables]), 200
-        
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -757,33 +822,14 @@ def listar_roles():
 @app.route('/api/reportes/historial-estados', methods=['GET'])
 @require_auth
 def reporte_historial_estados():
-    """Reporte de cambios de estado"""
     try:
-        equipo = request.args.get('equipo')
-        fecha_inicio = request.args.get('fecha_inicio')
-        fecha_fin = request.args.get('fecha_fin')
-        
         query = """
             SELECT h.*, e.Marca_Equipo, e.Modelo_Equipo, e.Unidad_Actual
             FROM Historial_Estado h
-            JOIN Equipos e ON h.fk_equipo_id = e.Nombre_Equipo
-            WHERE 1=1
+            LEFT JOIN Equipos e ON h.fk_equipo_id = e.Nombre_Equipo
+            ORDER BY h.Fecha_Estado DESC
         """
-        params = []
-        
-        if equipo:
-            query += " AND h.fk_equipo_id = %s"
-            params.append(equipo)
-        if fecha_inicio:
-            query += " AND h.Fecha_Estado >= %s"
-            params.append(fecha_inicio)
-        if fecha_fin:
-            query += " AND h.Fecha_Estado <= %s"
-            params.append(fecha_fin)
-        
-        query += " ORDER BY h.Fecha_Estado DESC"
-        
-        historial = ejecutar_query(query, tuple(params))
+        historial = ejecutar_query(query)
         return jsonify([dict(h) for h in historial]), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -791,15 +837,13 @@ def reporte_historial_estados():
 @app.route('/api/reportes/equipos-por-tecnico', methods=['GET'])
 @require_auth
 def reporte_equipos_por_tecnico():
-    """Equipos asignados por técnico"""
     try:
         query = """
             SELECT u.Nombre_Usuario, u.Cedula_Usuario,
                    COUNT(r.fk_equipo_id) as total_equipos,
-                   string_agg(r.fk_equipo_id, ', ') as equipos
+                   string_agg(CAST(r.fk_equipo_id AS TEXT), ', ') as equipos
             FROM Usuarios u
-            LEFT JOIN Responsables_Equipo r ON u.Cedula_Usuario = r.fk_tecnico_id 
-                                             
+            LEFT JOIN Responsables_Equipo r ON u.Cedula_Usuario = r.fk_tecnico_id AND r.Activo = TRUE
             WHERE u.Estado_Usuario = TRUE
             GROUP BY u.Cedula_Usuario, u.Nombre_Usuario
             ORDER BY total_equipos DESC
@@ -846,43 +890,132 @@ def reporte_mantenimientos_periodo():
         return jsonify({"error": str(e)}), 500
 
 # =====================================================
-# EXPORTAR CSV (CORREGIDO PARA AUTENTICACIÓN)
+# EXPORTAR Excel (CORREGIDO PARA AUTENTICACIÓN)
 # =====================================================
-@app.route('/api/exportar/csv', methods=['GET'])
-@require_auth
-def exportar_csv():
-    """Exportar equipos a CSV"""
+@app.route('/api/exportar/excel', methods=['GET'])
+# IMPORTANTE: Si quieres que solo usuarios autenticados exporten, descomenta la siguiente línea
+# @require_auth 
+def exportar_excel():
+    """Exportar todo el inventario a formato Excel (.xlsx)"""
     try:
-        equipos = ejecutar_query("SELECT * FROM Equipos ORDER BY Nombre_Equipo")
-        
-        if not equipos:
-            return jsonify({"error": "No hay datos para exportar"}), 404
-        
-        # Crear CSV en memoria con UTF-8 BOM para Excel
-        output = io.StringIO()
-        
-        columnas = equipos[0].keys()
-        writer = csv.DictWriter(output, fieldnames=columnas)
-        writer.writeheader()
-        
-        for equipo in equipos:
-            writer.writerow(dict(equipo))
-        
-        # Convertir a bytes con UTF-8 BOM
-        output.seek(0)
+        # 1. Consultar los datos (puedes ajustar el SELECT con las columnas que necesites)
+        query = """
+            SELECT 
+                Nombre_Equipo, Marca_Equipo, Modelo_Equipo, Serial_Equipo, 
+                Ip_Equipo, Mac_Equipo, Sistema_Operativo, Ram_Equipo, 
+                Disco_Equipo, Unidad_Actual, Tipo_Area, Estado_Equipo
+            FROM Equipos
+            ORDER BY Nombre_Equipo
+        """
+        equipos = ejecutar_query(query)
+
+        # 2. Crear el archivo Excel en memoria
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Inventario TI"
+
+        if equipos:
+            # 3. Generar encabezados dinámicamente basados en la consulta SQL
+            columnas = list(equipos[0].keys())
+            headers = [col.replace('_', ' ').title() for col in columnas]
+            ws.append(headers)
+
+            # 4. Darle estilo corporativo a los encabezados (Fondo azul, letra blanca)
+            header_fill = PatternFill(start_color="3B5FFF", end_color="3B5FFF", fill_type="solid")
+            header_font = Font(color="FFFFFF", bold=True)
+            for cell in ws[1]:
+                cell.fill = header_fill
+                cell.font = header_font
+
+            # 5. Llenar las filas con los datos de los equipos
+            for eq in equipos:
+                # Convertimos los valores a una lista para insertarlos en la fila
+                ws.append(list(eq.values()))
+
+        # 6. Guardar el Excel en un buffer de memoria en lugar de crear un archivo físico
         mem_file = io.BytesIO()
-        # Agregar BOM para que Excel reconozca UTF-8
-        mem_file.write('\ufeff'.encode('utf-8'))
-        mem_file.write(output.getvalue().encode('utf-8'))
+        wb.save(mem_file)
         mem_file.seek(0)
-        
+
+        # 7. Enviar el archivo al frontend
+        fecha_str = datetime.now().strftime("%Y%m%d_%H%M%S")
         return send_file(
             mem_file,
-            mimetype='text/csv; charset=utf-8',
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             as_attachment=True,
-            download_name=f'inventario_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+            download_name=f'inventario_ticontrol_{fecha_str}.xlsx'
         )
+
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/responsables/masivo', methods=['POST'])
+@require_auth
+@require_superuser
+def asignar_responsable_masivo():
+    """Asignar un técnico a todos los equipos de una unidad (Solo Superusuario)"""
+    try:
+        data = request.json
+        unidad = data.get('unidad')
+        tecnico = data.get('tecnico')
+        observacion = data.get('observacion', 'Asignación masiva por unidad')
+
+        if not unidad or not tecnico:
+            return jsonify({"error": "Faltan datos requeridos (unidad o técnico)"}), 400
+
+        conn = get_db_connection()
+        # Usamos RealDictCursor para poder leer los resultados fácilmente
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        try:
+            # 1. Obtener equipos ÚNICOS de la unidad (evita problemas si hay equipos duplicados)
+            cur.execute("SELECT DISTINCT Nombre_Equipo FROM Equipos WHERE Unidad_Actual = %s", (unidad,))
+            equipos = cur.fetchall()
+
+            if not equipos:
+                return jsonify({"error": f"No se encontraron equipos en la unidad '{unidad}'."}), 404
+
+            equipos_afectados = 0
+
+            # 2. Procesar equipo por equipo de forma segura
+            for equipo_row in equipos:
+                nombre_equipo = equipo_row['nombre_equipo']
+
+                # A. Desactivar responsable actual de ESTE equipo
+                cur.execute("""
+                    UPDATE Responsables_Equipo
+                    SET Activo = FALSE,
+                        Fecha_Fin = CURRENT_TIMESTAMP
+                    WHERE fk_equipo_id = %s AND Activo = TRUE
+                """, (nombre_equipo,))
+
+                # B. Asignar el nuevo responsable a ESTE equipo
+                cur.execute("""
+                    INSERT INTO Responsables_Equipo (fk_equipo_id, fk_tecnico_id, Fecha_Inicio, Activo, Observacion)
+                    VALUES (%s, %s, CURRENT_DATE, TRUE, %s)
+                """, (nombre_equipo, tecnico, observacion))
+
+                equipos_afectados += 1
+            
+            # Confirmar todos los cambios de una sola vez
+            conn.commit()
+            
+            return jsonify({
+                "success": True, 
+                "mensaje": f"Se asignó el técnico a {equipos_afectados} equipos exitosamente."
+            }), 200
+
+        except Exception as e:
+            conn.rollback() # Si algo falla, deshacemos todo para no dañar la BD
+            raise e
+        finally:
+            cur.close()
+            conn.close()
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 @app.route('/')
@@ -895,7 +1028,7 @@ def health_check():
     """Verificar estado del servidor"""
     try:
         total = ejecutar_query("SELECT COUNT(*) as count FROM Equipos", 
-                              fetchone=True, fetchall=False)['count']
+        fetchone=True, fetchall=False)['count']
         return jsonify({
             "status": "online",
             "timestamp": datetime.now().isoformat(),
