@@ -4,14 +4,17 @@ from datetime import datetime
 import psycopg2 
 from psycopg2.extras import RealDictCursor
 import io
-import csv
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
 from datetime import datetime
-import json
 from functools import wraps
 import sys
 import uuid
+import os
+from dotenv import load_dotenv
+
+# Cargar las variables ocultas del archivo .env
+load_dotenv()
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 app = Flask(__name__)
@@ -23,11 +26,11 @@ CORS(app)
 # CONFIGURACIÓN DE BASE DE DATOS
 # =====================================================
 DB_CONFIG = {
-    'host': 'localhost',
-    'database': 'inventariodb',
-    'user': 'postgres',
-    'password': 'postgres123',
-    'port': 5432,
+    'host': os.getenv('DB_HOST', 'localhost'),
+    'database': os.getenv('DB_NAME', 'inventariodb'),
+    'user': os.getenv('DB_USER', 'postgres'),
+    'password': os.getenv('DB_PASSWORD'), 
+    'port': int(os.getenv('DB_PORT', 5432)),
     'client_encoding': 'utf8'
 }
 
