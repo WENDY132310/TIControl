@@ -212,15 +212,26 @@ def registrar_equipo():
     try:
         data = request.json
         
-        # Verificar si existe
-        query_check = "SELECT Nombre_Equipo FROM Equipos WHERE Nombre_Equipo = %s"
+        # Verificar si existe (añadimos traer las observaciones actuales)
+        query_check = "SELECT Nombre_Equipo, Observaciones FROM Equipos WHERE Nombre_Equipo = %s"
         existe = ejecutar_query(query_check, (data['Nombre_Equipo'],), fetchone=True, fetchall=False)
         
         if existe:
-            # Actualizar
+            # PROTEGER OBSERVACIONES: Si el script manda "Ninguna", mantenemos el historial
+            obs_nueva = data.get('Observaciones', 'Ninguna')
+            obs_actual = existe['observaciones']
+            if obs_nueva == "Ninguna" and obs_actual:
+                obs_final = obs_actual
+            elif obs_nueva != "Ninguna" and obs_actual:
+                obs_final = f"{obs_nueva}\n\n{obs_actual}"
+            else:
+                obs_final = obs_nueva
+
+            # Actualizar (¡Corregido el orden y añadidas Placas y Serial!)
             query = """
                 UPDATE Equipos SET
                     Marca_Equipo = %s,
+                    Modelo_Equipo = %s,
                     Tipo_Equipo = %s,
                     Tipo_Area = %s,
                     Unidad_Actual = %s,
@@ -237,17 +248,21 @@ def registrar_equipo():
                     Mac_Equipo = %s,
                     Licencia_Windows_Equipo = %s,
                     Antivirus_Equipo = %s,
-                    Modelo_Equipo = %s,
+                    Placa_Torre = %s,
+                    Placa_Monitor = %s,
+                    Serial_Equipo = %s,
                     Fecha_actualizacion_equipo = CURRENT_TIMESTAMP
                 WHERE Nombre_Equipo = %s
             """
+
             params = (
-                data.get('Marca'), data.get('Modelo'), data.get('Tipo_Area'),
-                data.get('Unidad'), data.get('Procesador'), data.get('RAM_GB'),
-                data.get('Tipo_RAM'), data.get('Discos'), data.get('Sistema_Operativo'),
-                data.get('IP'), data.get('Observaciones'), data.get('Arquitectura'),
-                data.get('Office'), data.get('Version_Office'), data.get('MAC'),
-                data.get('Licencia_Windows'), data.get('Antivirus'), data.get('Tipo_Equipo'),
+                data.get('Marca'), data.get('Modelo'), data.get('Tipo_Equipo'), 
+                data.get('Tipo_Area'), data.get('Unidad'), data.get('Procesador'), 
+                data.get('RAM_GB'), data.get('Tipo_RAM'), data.get('Discos'), 
+                data.get('Sistema_Operativo'), data.get('IP'), obs_final, 
+                data.get('Arquitectura'), data.get('Office'), data.get('Version_Office'), 
+                data.get('MAC'), data.get('Licencia_Windows'), data.get('Antivirus'),
+                data.get('Placa_Equipo'), data.get('Placa_Pantalla'), data.get('Serial_PC'),
                 data['Nombre_Equipo']
             )
             ejecutar_query(query, params, commit=True)
@@ -269,7 +284,7 @@ def registrar_equipo():
                 data.get('Sistema_Operativo'), data.get('IP'), data.get('Observaciones'),
                 data.get('Arquitectura'), data.get('Placa_Equipo'), data.get('Placa_Pantalla'), 
                 data.get('Office'), data.get('Version_Office'),
-                data.get('MAC'), data.get('Licencia_Windows'), data.get('Serial'),
+                data.get('MAC'), data.get('Licencia_Windows'), data.get('Serial_PC'), # Corregido para que lea Serial_PC
                 data.get('Antivirus'), data.get('Modelo')
             )
             ejecutar_query(query, params, commit=True)
@@ -278,6 +293,8 @@ def registrar_equipo():
         return jsonify({"success": True, "mensaje": f"Equipo {accion}"}), 200
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/equipos', methods=['GET'])
@@ -1047,7 +1064,7 @@ if __name__ == '__main__':
     print("=" * 60)
     print("SERVIDOR API INVENTARIO TI - PostgreSQL (VERSIÓN CON FILTROS COMPLETOS)")
     print("=" * 60)
-    print(f"Servidor iniciado en: http://192.168.80.125:5000")
+    print(f"Servidor iniciado en: http://192.168.80.66:5000")
     print(f"Base de datos: {DB_CONFIG['database']}")
     print("=" * 60)
     

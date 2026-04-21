@@ -1,0 +1,4 @@
+openpyxl
+dotenv
+
+pñyth
