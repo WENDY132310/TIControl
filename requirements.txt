@@ -1,4 +1,5 @@
-openpyxl
-dotenv
-
-pñyth
+Flask==2.3.2
+Flask-CORS==4.0.0
+psycopg2-binary==2.9.6
+openpyxl==3.1.2
+python-dotenv==1.0.0
